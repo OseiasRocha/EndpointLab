@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import logger from 'jet-logger';
@@ -30,7 +31,8 @@ if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
 app.use(Paths._, BaseRouter);
 
 if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
-  const publicDir = path.join(__dirname, 'public');
+  const publicDirCandidates = [path.join(__dirname, 'public'), path.resolve(__dirname, '../../public')];
+  const publicDir = publicDirCandidates.find((dir) => fs.existsSync(dir)) ?? publicDirCandidates[0];
   app.use(express.static(publicDir));
   app.get('*path', (_, res) => res.sendFile(path.join(publicDir, 'index.html')));
 }

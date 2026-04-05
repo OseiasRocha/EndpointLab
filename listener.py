@@ -6,6 +6,7 @@ transmissions from the UI and see what arrives.
 """
 
 import json
+import os
 import socket
 import threading
 from datetime import datetime
@@ -13,23 +14,40 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-HOST = "localhost"
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
-ENABLE_HTTP = False
-ENABLE_TCP  = True
-ENABLE_UDP  = False
 
-HTTP_PORT = 8080
-TCP_PORT  = 8080
-UDP_PORT  = 8080
+def _env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+HOST = os.getenv("LISTENER_HOST", "0.0.0.0")
+
+ENABLE_HTTP = _env_bool("LISTENER_ENABLE_HTTP", False)
+ENABLE_TCP  = _env_bool("LISTENER_ENABLE_TCP", True)
+ENABLE_UDP  = _env_bool("LISTENER_ENABLE_UDP", False)
+
+HTTP_PORT = _env_int("LISTENER_HTTP_PORT", 18080)
+TCP_PORT  = _env_int("LISTENER_TCP_PORT", 18081)
+UDP_PORT  = _env_int("LISTENER_UDP_PORT", 18082)
 
 # HTTP response sent back to every request
 HTTP_RESPONSE_STATUS = 200
 HTTP_RESPONSE_BODY   = {"status": "ok", "echo": "received"}   # set to None for empty body
 
 # JSON object sent back on TCP/UDP; set to None to send no response
-TCP_RESPONSE = {"test": 1}
-UDP_RESPONSE = {"test": 1}
+TCP_RESPONSE = {"response": 2}
+UDP_RESPONSE = {"response": 3}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

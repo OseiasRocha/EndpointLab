@@ -16,7 +16,7 @@ import { Req, Res } from './common/express-types';
  *
  * @route GET /api/endpoints
  */
-async function getAll(_: Req, res: Res) {
+function getAll(_: Req, res: Res) {
   const endpoints = EndpointService.getAll();
   res.status(HttpStatusCodes.OK).json(endpoints);
 }
@@ -26,7 +26,7 @@ async function getAll(_: Req, res: Res) {
  *
  * @route POST /api/endpoints
  */
-async function create(req: Req, res: Res) {
+function create(req: Req, res: Res) {
   const result = EndpointSchema.safeParse(req.body);
   if (!result.success) {
     throw new RouteError(
@@ -43,7 +43,7 @@ async function create(req: Req, res: Res) {
  *
  * @route PUT /api/endpoints/:id
  */
-async function update(req: Req, res: Res) {
+function update(req: Req, res: Res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Invalid id');
@@ -64,7 +64,7 @@ async function update(req: Req, res: Res) {
  *
  * @route DELETE /api/endpoints/:id
  */
-async function delete_(req: Req, res: Res) {
+function delete_(req: Req, res: Res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Invalid id');

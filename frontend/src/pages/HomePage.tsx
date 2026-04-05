@@ -107,7 +107,7 @@ export default function HomePage() {
           <Box sx={{ mt: 2, px: 2, py: 1.5, bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 1, display: 'inline-block' }}>
             <Typography variant="caption" sx={{ opacity: 0.8 }}>Base URL</Typography>
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#98e5c1' }}>
-              http://localhost:3000
+              {window.location.origin}
             </Typography>
           </Box>
         </Box>
@@ -203,6 +203,7 @@ export default function HomePage() {
       </Box>
 
       <AddEditDialog
+        key={`${editing?.id ?? 'new'}-${dialogOpen ? 'open' : 'closed'}`}
         open={dialogOpen}
         initial={editing}
         onClose={() => setDialogOpen(false)}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -45,15 +45,10 @@ function isValidJson(s: string) {
 }
 
 export default function AddEditDialog({ open, initial, onClose, onSave }: Props) {
-  const [form, setForm] = useState<Omit<SimulatorEndpoint, 'id'>>(EMPTY);
+  const [form, setForm] = useState<Omit<SimulatorEndpoint, 'id'>>(
+    initial ? { ...EMPTY, ...initial } : EMPTY,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (open) {
-      setForm(initial ? { ...EMPTY, ...initial } : EMPTY);
-      setErrors({});
-    }
-  }, [open, initial]);
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setForm(f => ({ ...f, [key]: value }));

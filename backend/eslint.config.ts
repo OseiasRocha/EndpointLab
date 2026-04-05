@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig([
   // global ignores
-  globalIgnores(['**/dist/**', '**/public/**/lib/**']),
+  globalIgnores(['**/dist/**', '**/public/**/lib/**', 'drizzle.config.ts']),
   // linting rules (code quality only)
   {
     files: ['**/*.{ts,tsx}'],
