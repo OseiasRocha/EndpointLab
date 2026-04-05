@@ -16,8 +16,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 HOST = "localhost"
 
 ENABLE_HTTP = False
-ENABLE_TCP  = False
-ENABLE_UDP  = True
+ENABLE_TCP  = True
+ENABLE_UDP  = False
 
 HTTP_PORT = 8080
 TCP_PORT  = 8080
@@ -28,7 +28,7 @@ HTTP_RESPONSE_STATUS = 200
 HTTP_RESPONSE_BODY   = {"status": "ok", "echo": "received"}   # set to None for empty body
 
 # JSON object sent back on TCP/UDP; set to None to send no response
-TCP_RESPONSE = {"test": 10}
+TCP_RESPONSE = {"test": 1}
 UDP_RESPONSE = {"test": 1}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

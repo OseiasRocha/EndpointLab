@@ -20,8 +20,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import type { SimulatorEndpoint, TransmitResult, Protocol, HttpMethod } from '../types/endpoint';
 import { endpointsApi } from '../api/endpoints';
+import { diffJson, type DiffResult } from '../utils/jsonDiff';
 import ProtocolBadge from './ProtocolBadge';
 import JsonDisplay from './JsonDisplay';
+import JsonDiffDisplay from './JsonDiffDisplay';
 
 const BORDER_COLORS: Record<Protocol, string> = {
   HTTP: '#49cc90',
@@ -47,6 +49,7 @@ export default function EndpointCard({ endpoint, onEdit, onDelete }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [sending, setSending] = useState(false);
   const [transmitResult, setTransmitResult] = useState<TransmitResult | null>(null);
+  const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
 
   const borderColor = endpoint.protocol === 'HTTP' && endpoint.httpMethod
     ? HTTP_BORDER[endpoint.httpMethod]
@@ -59,9 +62,13 @@ export default function EndpointCard({ endpoint, onEdit, onDelete }: Props) {
   async function handleSend() {
     setSending(true);
     setTransmitResult(null);
+    setDiffResult(null);
     try {
       const result = await endpointsApi.send(endpoint.id!);
       setTransmitResult(result);
+      if (endpoint.hasResponse && endpoint.responseBody && result.responseBody) {
+        setDiffResult(diffJson(endpoint.responseBody, result.responseBody));
+      }
       setExpanded(true);
     } catch (err) {
       setTransmitResult({ success: false, error: String(err), latencyMs: 0 });
@@ -232,7 +239,9 @@ export default function EndpointCard({ endpoint, onEdit, onDelete }: Props) {
                 </Typography>
               )}
               {transmitResult.responseBody && (
-                <JsonDisplay label="Received Response" value={transmitResult.responseBody} />
+                diffResult
+                  ? <JsonDiffDisplay label="Received Response" received={transmitResult.responseBody} diff={diffResult} />
+                  : <JsonDisplay label="Received Response" value={transmitResult.responseBody} />
               )}
             </>
           )}
