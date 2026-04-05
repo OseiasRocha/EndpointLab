@@ -1,0 +1,9 @@
+{
+  "name": "endpoint-simulator",
+  "private": true,
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ]
+}

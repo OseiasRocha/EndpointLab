@@ -2,18 +2,7 @@ import dgram from 'dgram';
 import http from 'http';
 import net from 'net';
 
-import { IEndpoint } from '@src/schemas/endpointSchema';
-
-/******************************************************************************
-                                Types
-******************************************************************************/
-
-export interface TransmitResult {
-  success: boolean;
-  responseBody?: string;
-  error?: string;
-  latencyMs: number;
-}
+import type { IEndpoint, TransmitResult } from '@shared';
 
 /******************************************************************************
                                 Constants
