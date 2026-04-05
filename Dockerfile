@@ -1,0 +1,50 @@
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Workspace manifests for better layer caching
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+
+RUN npm ci
+
+# Copy sources
+COPY shared/ ./shared/
+COPY backend/ ./backend/
+COPY frontend/ ./frontend/
+
+# Build backend and frontend artifacts
+RUN npm run build:docker -w backend
+RUN npm run build -w frontend
+
+RUN cp -r frontend/dist/. backend/dist/public/ \
+  && npm prune --omit=dev
+
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+RUN apk add --no-cache python3
+
+# Runtime dependencies and compiled artifacts
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/backend/node_modules ./backend/node_modules
+COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/backend/package.json ./backend/
+COPY listener.py ./listener.py
+
+RUN mkdir -p /app/backend/dist/backend/src/repos
+VOLUME ["/app/backend/dist/backend/src/repos"]
+
+EXPOSE 8080
+
+ENV NODE_ENV=production \
+  PORT=8080 \
+  RUN_LISTENER=false
+
+WORKDIR /app/backend
+
+CMD ["sh", "-c", "if [ \"$RUN_LISTENER\" = \"true\" ]; then python3 /app/listener.py & fi; exec node -r module-alias/register dist/backend/src/main.js"]

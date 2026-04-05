@@ -15,10 +15,10 @@ const SERVER_START_MESSAGE =
 ******************************************************************************/
 
 // Start the server
-server.listen(EnvVars.Port, (err) => {
-  if (!!err) {
-    logger.err(err.message);
-  } else {
-    logger.info(SERVER_START_MESSAGE);
-  }
+const httpServer = server.listen(EnvVars.Port, () => {
+  logger.info(SERVER_START_MESSAGE);
+});
+
+httpServer.on('error', (err: Error) => {
+  logger.err(err.message);
 });

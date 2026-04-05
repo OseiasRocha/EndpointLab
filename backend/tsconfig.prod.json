@@ -4,13 +4,14 @@
     "module": "CommonJS",
     "lib": ["ES2020"],
     "strict": true,
-    "baseUrl": "./",
     "outDir": "dist",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@src/*": ["src/*"]
+      "@src/*": ["./src/*"],
+      "@shared": ["../shared/src/index"],
+      "@shared/*": ["../shared/src/*"]
     },
     "useUnknownInCatchVariables": false,
     "sourceMap": false,
