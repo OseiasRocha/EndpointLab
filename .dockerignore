@@ -1,0 +1,18 @@
+node_modules
+*/node_modules
+**/node_modules
+
+*/dist
+shared/dist
+backend/dist
+frontend/dist
+
+**/.git
+**/.env*.local
+**/coverage
+**/*.log
+
+# SQLite database files (mounted as a volume at runtime)
+backend/src/repos/*.sqlite
+backend/src/repos/*.sqlite-shm
+backend/src/repos/*.sqlite-wal

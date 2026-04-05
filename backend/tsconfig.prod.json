@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@src/*": ["src/*"],
+      "@src/*": ["./src/*"],
       "@shared": ["../shared/src/index"],
       "@shared/*": ["../shared/src/*"]
     },

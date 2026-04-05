@@ -1,3 +1,4 @@
+import path from 'path';
 import express, { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import logger from 'jet-logger';
@@ -27,6 +28,12 @@ if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
 }
 
 app.use(Paths._, BaseRouter);
+
+if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
+  const publicDir = path.join(__dirname, 'public');
+  app.use(express.static(publicDir));
+  app.get('*path', (_, res) => res.sendFile(path.join(publicDir, 'index.html')));
+}
 
 app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
   if (EnvVars.NodeEnv !== NodeEnvs.TEST.valueOf()) {

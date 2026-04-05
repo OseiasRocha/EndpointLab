@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "build": "shx rm -rf dist && npm run lint && tsc --project tsconfig.prod.json && npm run build:copy-static && npm run build:make-db",
+    "build:docker": "shx rm -rf dist && tsc --project tsconfig.prod.json && shx mkdir -p dist/public",
     "build:copy-static": "shx mkdir -p dist/public dist/views && shx cp -r src/public/* dist/public && shx cp -r src/views/* dist/views",
     "build:make-db": "shx mkdir -p dist/repos/common && shx touch dist/repos/common/database.json && echo \"{}\" > dist/repos/common/database.json",
     "clean-install": "rm -rf ./node_modules && rm -r package-lock.json && npm i",
@@ -20,7 +21,8 @@
     "node": ">=16.0.0"
   },
   "_moduleAliases": {
-    "@src": "dist"
+    "@src": "dist/backend/src",
+    "@shared": "dist/shared/src"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",
