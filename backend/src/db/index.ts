@@ -4,7 +4,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 import * as schema from './schema';
 
-const sqlite = new Database(path.join(__dirname, '..', 'repos', 'db.sqlite'));
+const sqlite = new Database(process.env.DB_PATH ?? path.join(__dirname, '..', 'repos', 'db.sqlite'));
 
 ensureSchema(sqlite);
 

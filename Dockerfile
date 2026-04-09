@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM dhi.io/node:25-alpine3.23-dev AS builder
 
 WORKDIR /app
 
@@ -20,13 +20,13 @@ RUN npm run build:docker -w backend
 RUN npm run build -w frontend
 
 RUN cp -r frontend/dist/. backend/dist/public/ \
-  && npm prune --omit=dev
+  && mkdir -p backend/dist/backend/src/repos \
+  && npm prune --omit=dev \
+  && mkdir -p data
 
-FROM node:24-alpine AS runner
+FROM dhi.io/node:25-alpine3.23 AS runner
 
 WORKDIR /app
-
-RUN apk add --no-cache python3
 
 # Runtime dependencies and compiled artifacts
 COPY --from=builder /app/node_modules ./node_modules
@@ -34,17 +34,15 @@ COPY --from=builder /app/backend/node_modules ./backend/node_modules
 COPY --from=builder /app/backend/dist ./backend/dist
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/backend/package.json ./backend/
-COPY listener.py ./listener.py
-
-RUN mkdir -p /app/backend/dist/backend/src/repos
-VOLUME ["/app/backend/dist/backend/src/repos"]
+COPY --chown=1000:1000 --from=builder /app/data ./data
 
 EXPOSE 8080
 
 ENV NODE_ENV=production \
   PORT=8080 \
-  RUN_LISTENER=false
+  DB_PATH=/app/data/db.sqlite
 
 WORKDIR /app/backend
 
-CMD ["sh", "-c", "if [ \"$RUN_LISTENER\" = \"true\" ]; then python3 /app/listener.py & fi; exec node -r module-alias/register dist/backend/src/main.js"]
+CMD ["node", "-r", "module-alias/register", "dist/backend/src/main.js"]
+

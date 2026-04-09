@@ -84,7 +84,9 @@ You can configure listener behavior with env vars:
 
 ```bash
 docker pull oseiasrocha/endpoint-simulator:latest
-docker run --rm -p 8080:8080 oseiasrocha/endpoint-simulator:latest
+docker run --rm -p 8080:8080 \
+  -v ./data:/app/data \
+  oseiasrocha/endpoint-simulator:latest
 ```
 
 App will be available at `http://localhost:8080`.
@@ -93,8 +95,12 @@ App will be available at `http://localhost:8080`.
 
 ```bash
 docker build -t endpoint-simulator .
-docker run --rm -p 8080:8080 endpoint-simulator
+docker run --rm -p 8080:8080 \
+  -v ./data:/app/data \
+  endpoint-simulator
 ```
+
+> **Note:** The `-v` flag mounts a local `./data` directory for SQLite persistence. Without it, all endpoint data is lost when the container is removed. The directory will be created automatically on first run.
 
 ## Docker + Listener
 
