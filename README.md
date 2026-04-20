@@ -16,7 +16,7 @@ Docker Hub image:
 - Send test transmissions to configured endpoints
 - Store endpoint data in SQLite
 - Run as local dev stack or as a single Docker container
-- HTTPS support with auto-generated self-signed certificate (Docker)
+- HTTPS support via volume-mounted certificates (Docker)
 
 ## Project Structure
 
@@ -87,6 +87,7 @@ You can configure listener behavior with env vars:
 docker pull oseiasrocha/endpointlab:latest
 docker run -p 8080:8080 -p 8443:8443 \
   -v endpointlab-data:/app/data \
+  -v /path/to/your/certs:/app/certs \
   oseiasrocha/endpointlab:latest
 ```
 
@@ -98,12 +99,13 @@ App will be available at `http://localhost:8080` and `https://localhost:8443`.
 docker build -t endpointlab .
 docker run -p 8080:8080 -p 8443:8443 \
   -v endpointlab-data:/app/data \
+  -v /path/to/your/certs:/app/certs \
   endpointlab
 ```
 
-> **Note:** The `-v` flag mounts a named Docker volume so data persists across container recreations. Without it, Docker creates an anonymous volume that is tied to the container and lost when it is removed. You can also use a bind mount (`-v ./data:/app/data`) if you prefer a local directory. The default database path is `/app/data/db.sqlite` and can be overridden with `-e DB_PATH=<path>`.
+> **Note:** The `-v endpointlab-data:/app/data` flag mounts a named Docker volume so data persists across container recreations. Without it, Docker creates an anonymous volume that is tied to the container and lost when it is removed. You can also use a bind mount (`-v ./data:/app/data`) if you prefer a local directory. The default database path is `/app/data/db.sqlite` and can be overridden with `-e DB_PATH=<path>`.
 
-> **HTTPS:** The Docker image generates a self-signed TLS certificate at build time (stored in `/app/certs`). The certificate is valid for 10 years and uses the CN `endpointlab`. Since it is self-signed, browsers will show a security warning — accept it or add an exception. You can override the cert location with `-e CERT_DIR=<path>` and the HTTPS port with `-e HTTPS_PORT=<port>`. To disable HTTPS entirely, omit `HTTPS_PORT`.
+> **HTTPS:** The Docker image expects TLS certificates to be provided via a volume mounted at `/app/certs`. Place your `cert.pem` and `key.pem` files in the directory you mount there. If the certificate files are not found, HTTPS is skipped and only HTTP is served. You can override the cert directory with `-e CERT_DIR=<path>` and the HTTPS port with `-e HTTPS_PORT=<port>`. To disable HTTPS entirely, omit `HTTPS_PORT`.
 
 > **Note:** `listener.py` is not included in the Docker image. To use the listener, run it locally alongside the container (see [Run Locally](#run-locally-manual)).
 
