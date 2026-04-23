@@ -23,6 +23,10 @@ function addOne(data: EndpointInput): IEndpoint {
   return EndpointRepo.add(data);
 }
 
+function addMany(data: EndpointInput[]): IEndpoint[] {
+  return EndpointRepo.bulkAdd(data);
+}
+
 function updateOne(id: number, data: EndpointInput): IEndpoint {
   if (!EndpointRepo.persists(id)) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.NOT_FOUND);
@@ -45,6 +49,7 @@ export default {
   Errors,
   getAll,
   addOne,
+  addMany,
   updateOne,
   delete: deleteOne,
 } as const;

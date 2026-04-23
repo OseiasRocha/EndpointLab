@@ -24,6 +24,10 @@ function add(data: EndpointInput): IEndpoint {
   return db.insert(endpoints).values(toRow(data)).returning().get() as IEndpoint;
 }
 
+function bulkAdd(data: EndpointInput[]): IEndpoint[] {
+  return db.insert(endpoints).values(data.map(toRow)).returning().all() as IEndpoint[];
+}
+
 function update(id: number, data: EndpointInput): IEndpoint {
   return db.update(endpoints).set(toRow(data)).where(eq(endpoints.id, id)).returning().get() as IEndpoint;
 }
@@ -57,6 +61,7 @@ export default {
   getById,
   persists,
   add,
+  bulkAdd,
   update,
   delete: delete_,
 } as const;

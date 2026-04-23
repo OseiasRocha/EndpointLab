@@ -4,7 +4,7 @@ import {
   SimulatorEndpointSchema,
   TransmitResultSchema,
 } from '@shared';
-import type { SimulatorEndpoint, TransmitResult } from '@shared';
+import type { SimulatorEndpoint, EndpointInput, TransmitResult } from '@shared';
 
 const BASE = '/api/endpoints';
 
@@ -50,5 +50,13 @@ export const endpointsApi = {
     return fetch(`${BASE}/${id}/send`, { method: 'POST' }).then((res) =>
       handleResponse(res, TransmitResultSchema),
     );
+  },
+
+  bulkCreate(data: EndpointInput[]): Promise<SimulatorEndpoint[]> {
+    return fetch(`${BASE}/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((res) => handleResponse(res, z.array(EndpointWithIdSchema)));
   },
 };

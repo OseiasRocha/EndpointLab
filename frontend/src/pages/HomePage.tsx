@@ -14,10 +14,15 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import FileUploadIcon from '@mui/icons-material/FileUpload';
 import type { SimulatorEndpoint, Protocol } from '../types/endpoint';
+import type { EndpointInput } from '@shared';
 import { endpointsApi } from '../api/endpoints';
 import EndpointCard from '../components/EndpointCard';
 import AddEditDialog from '../components/AddEditDialog';
+import ExportDialog from '../components/ExportDialog';
+import ImportDialog from '../components/ImportDialog';
 
 const PROTOCOL_FILTERS: Array<Protocol | 'ALL'> = ['ALL', 'HTTP', 'TCP', 'UDP'];
 
@@ -29,6 +34,8 @@ export default function HomePage() {
   const [toast, setToast] = useState<{ msg: string; severity: 'success' | 'error' } | null>(null);
   const [search, setSearch] = useState('');
   const [protocolFilter, setProtocolFilter] = useState<Protocol | 'ALL'>('ALL');
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -69,6 +76,12 @@ export default function HomePage() {
     } catch (err) {
       setToast({ msg: String(err), severity: 'error' });
     }
+  }
+
+  async function handleBulkImport(data: EndpointInput[]) {
+    const created = await endpointsApi.bulkCreate(data);
+    setEndpoints(eps => [...eps, ...created]);
+    setToast({ msg: `Imported ${created.length} endpoint${created.length !== 1 ? 's' : ''}`, severity: 'success' });
   }
 
   async function handleDelete(id: number) {
@@ -116,6 +129,23 @@ export default function HomePage() {
       {/* Toolbar */}
       <Box sx={{ bgcolor: '#f4f7f9', borderBottom: '1px solid #e0e0e0', px: { xs: 2, md: 4 }, py: 1.5 }}>
         <Box sx={{ maxWidth: 1100, mx: 'auto', display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Button
+            variant="outlined"
+            startIcon={<FileUploadIcon />}
+            onClick={() => setImportOpen(true)}
+            sx={{ whiteSpace: 'nowrap', borderColor: '#ccc', color: '#555', '&:hover': { borderColor: '#49cc90', color: '#49cc90' } }}
+          >
+            Import
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<FileDownloadIcon />}
+            onClick={() => setExportOpen(true)}
+            disabled={endpoints.length === 0}
+            sx={{ whiteSpace: 'nowrap', borderColor: '#ccc', color: '#555', '&:hover': { borderColor: '#49cc90', color: '#49cc90' } }}
+          >
+            Export
+          </Button>
           <TextField
             placeholder="Search endpoints…"
             value={search}
@@ -208,6 +238,19 @@ export default function HomePage() {
         initial={editing}
         onClose={() => setDialogOpen(false)}
         onSave={handleSave}
+      />
+
+      <ExportDialog
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        endpoints={endpoints}
+      />
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        existingEndpoints={endpoints}
+        onImport={handleBulkImport}
       />
 
       <Snackbar

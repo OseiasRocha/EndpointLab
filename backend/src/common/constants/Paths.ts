@@ -6,6 +6,7 @@ const Paths = {
     _: '/endpoints',
     GetAll: '/',
     Create: '/',
+    BulkCreate: '/bulk',
     Update: '/:id',
     Delete: '/:id',
     Send: '/:id/send',

@@ -60,6 +60,31 @@ function update(req: Req, res: Res) {
 }
 
 /**
+ * Bulk-create endpoints (used by import).
+ *
+ * @route POST /api/endpoints/bulk
+ */
+function bulkCreate(req: Req, res: Res) {
+  if (!Array.isArray(req.body)) {
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Body must be an array');
+  }
+  const parsed: ReturnType<typeof EndpointSchema.safeParse>[] = req.body.map(
+    (item: unknown) => EndpointSchema.safeParse(item),
+  );
+  const failed = parsed.filter(r => !r.success);
+  if (failed.length > 0) {
+    const msgs = failed
+      .map(r => (!r.success ? formatZodError(r.error) : ''))
+      .filter(Boolean)
+      .join(' | ');
+    throw new RouteError(HttpStatusCodes.BAD_REQUEST, msgs);
+  }
+  const data = parsed.map(r => (r.success ? r.data : null)).filter(Boolean) as ReturnType<typeof EndpointSchema.parse>[];
+  const created = EndpointService.addMany(data);
+  res.status(HttpStatusCodes.CREATED).json(created);
+}
+
+/**
  * Delete one endpoint.
  *
  * @route DELETE /api/endpoints/:id
@@ -88,6 +113,7 @@ function formatZodError(error: ZodError): string {
 export default {
   getAll,
   create,
+  bulkCreate,
   update,
   delete: delete_,
 } as const;

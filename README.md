@@ -17,6 +17,7 @@ Docker Hub image:
 - Store endpoint data in SQLite
 - Run as local dev stack or as a single Docker container
 - HTTPS support via volume-mounted certificates (Docker)
+- Export endpoints to a ZIP archive and import them back
 
 ## Project Structure
 
@@ -108,6 +109,28 @@ docker run -p 8080:8080 -p 8443:8443 \
 > **HTTPS:** The Docker image expects TLS certificates to be provided via a volume mounted at `/app/certs`. Place your `cert.pem` and `key.pem` files in the directory you mount there. If the certificate files are not found, HTTPS is skipped and only HTTP is served. You can override the cert directory with `-e CERT_DIR=<path>` and the HTTPS port with `-e HTTPS_PORT=<port>`. To disable HTTPS entirely, omit `HTTPS_PORT`.
 
 > **Note:** `listener.py` is not included in the Docker image. To use the listener, run it locally alongside the container (see [Run Locally](#run-locally-manual)).
+
+## Import / Export
+
+Endpoints can be exported and imported from the toolbar in the top-left of the UI.
+
+### Export
+
+1. Click **Export** in the toolbar.
+2. Select the endpoints to export (all are pre-selected; use **Select All** to toggle).
+3. Click **Export ZIP** — the browser downloads `endpoints-export.zip`.
+
+Each endpoint is saved as a separate JSON file inside the archive (`{name}-{id}.json`). The `id` field is stripped so files can be imported into any instance.
+
+### Import
+
+1. Click **Import** in the toolbar.
+2. Select a `.zip` file previously exported from EndpointLab.
+3. A preview lists every endpoint found in the archive:
+   - **Valid** — will be imported.
+   - **Duplicate** — an endpoint with the same name, host, and port already exists; it will be skipped.
+   - **Invalid** — the JSON does not match the expected schema; it will be skipped.
+4. Click **Import N** to confirm. A toast confirms how many endpoints were created.
 
 ## Useful Commands
 
