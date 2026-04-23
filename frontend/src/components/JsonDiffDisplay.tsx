@@ -10,17 +10,7 @@ interface Props {
   diff: DiffResult;
 }
 
-function tryFormat(raw: string): string {
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2);
-  } catch {
-    return raw;
-  }
-}
-
 export default function JsonDiffDisplay({ label, received, diff }: Props) {
-  const formatted = tryFormat(received);
-
   const header = diff.ok ? (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
       <CheckCircleIcon sx={{ fontSize: 15, color: '#49cc90' }} />
@@ -49,10 +39,23 @@ export default function JsonDiffDisplay({ label, received, diff }: Props) {
     );
   }
 
+  if (diff.ok && diff.format === 'text') {
+    return (
+      <Box sx={{ mt: 1.5 }}>
+        {header}
+        <Box component="pre" sx={codeBoxSx}>
+          {received}
+        </Box>
+      </Box>
+    );
+  }
+
+  const parsedReceived = JSON.parse(received) as unknown;
+
   // Match or mismatch with line annotations
   const lines = diff.ok
-    ? formatted.split('\n').map(text => ({ text, error: false }))
-    : annotateLines(formatted, diff.mismatches);
+    ? annotateLines(parsedReceived, [])
+    : annotateLines(parsedReceived, diff.mismatches);
 
   return (
     <Box sx={{ mt: 1.5 }}>

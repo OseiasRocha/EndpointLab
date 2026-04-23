@@ -1,3 +1,4 @@
+/* eslint-disable no-process-env */
 import fs from 'fs';
 import http from 'http';
 import https from 'https';

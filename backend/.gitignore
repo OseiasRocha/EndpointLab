@@ -2,3 +2,5 @@
 dist/
 **/**/*.log
 tsconfig.tsbuildinfo
+src/repos/*.sqlite-shm
+src/repos/*.sqlite-wal

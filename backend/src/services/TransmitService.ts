@@ -140,7 +140,7 @@ function transmit(endpoint: IEndpoint): Promise<TransmitResult> {
     case 'HTTP': return transmitHttp(endpoint);
     case 'TCP':  return transmitTcp(endpoint);
     case 'UDP':  return transmitUdp(endpoint);
-    default:     throw new Error(`Unsupported protocol: ${(endpoint as IEndpoint).protocol}`);
+    default:     throw new Error('Unsupported protocol');
   }
 }
 

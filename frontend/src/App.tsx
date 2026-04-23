@@ -1,12 +1,9 @@
-import { useState, useMemo, createContext, useContext } from 'react';
+import { useMemo, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import HomePage from './pages/HomePage';
-
-interface ColorModeCtx { toggle: () => void; mode: 'light' | 'dark' }
-export const ColorModeContext = createContext<ColorModeCtx>({ toggle: () => {}, mode: 'dark' });
-export const useColorMode = () => useContext(ColorModeContext);
+import { ColorModeContext, type ColorModeCtx } from './context/colorMode';
 
 function buildTheme(mode: 'light' | 'dark') {
   return createTheme({

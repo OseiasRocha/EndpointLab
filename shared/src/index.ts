@@ -1,4 +1,5 @@
 import { z } from 'zod';
+export { getEndpointFallbackKey, getEndpointImportKey } from './endpointIdentity';
 
 /******************************************************************************
                              Primitive Schemas
@@ -16,6 +17,7 @@ const nullToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
 
 export const EndpointSchema = z
   .object({
+    externalId: nullToUndefined(z.string().uuid()),
     name: z.string().min(1, 'Name is required'),
     description: nullToUndefined(z.string()),
     protocol: ProtocolSchema,

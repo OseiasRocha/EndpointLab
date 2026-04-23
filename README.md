@@ -45,6 +45,7 @@ Each saved endpoint uses this schema:
 
 ```json
 {
+  "externalId": "6a247376-4efd-4791-b2d5-dbc0fd4f1aab",
   "name": "Local TCP echo",
   "description": "Optional note",
   "protocol": "TCP",
@@ -62,7 +63,7 @@ Each saved endpoint uses this schema:
 Notes:
 - `httpMethod` and `path` are required when `protocol` is `HTTP`.
 - `responseBody` is an expected response used by the UI for comparison. It is not served by the backend.
-- Import and bulk upsert match existing rows by `name + host + port`.
+- Exported files keep a stable hidden `externalId` so imports can update the same logical endpoint without clobbering unrelated ones.
 
 ## API Summary
 
@@ -177,13 +178,14 @@ The backend auto-creates the `endpoints` table and adds missing columns on start
 Export behavior:
 - The UI creates `endpoints-export.zip`
 - Each selected endpoint is stored as one JSON file
-- The exported JSON omits `id`
+- The exported JSON omits `id` but keeps the stable `externalId`
 
 Import behavior:
 - The UI reads every `.json` file in the ZIP
 - Each file is validated against the shared endpoint schema
 - Invalid files are listed and cannot be selected
-- Matching endpoints are updated when `name`, `host`, and `port` already exist
+- Matching endpoints are updated by `externalId` when present
+- Older imports without `externalId` fall back to a stricter legacy match that includes name, protocol, host, port, method, and path
 - Non-matching endpoints are created
 
 ## Docker
@@ -221,17 +223,16 @@ Notes:
 - If `cert.pem` and `key.pem` are missing from `CERT_DIR`, HTTPS is skipped.
 - `listener.py` is not included in the Docker image.
 
-## Working Script Notes
+## Verified Commands
 
-These details reflect the current repository state:
-
-- `npm run build -w frontend` works
-- `npm run build:docker -w backend` works
-- `npm run type-check -w backend` works
-- `npm run dev -w backend` is stale and fails because `bs-config.js` is missing
-- `npm run lint -w frontend` currently fails on existing lint violations
-- `npm run lint -w backend` currently fails on an existing lint violation in `TransmitService.ts`
-- `npm run test -w backend` currently exits with "No test files found"
+- `npm run lint -w frontend`
+- `npm run build -w frontend`
+- `npm run lint -w backend`
+- `npm run test -w backend`
+- `npm run type-check -w backend`
+- `npm run build -w backend`
+- `npm run build:docker -w backend`
+- `npm run start -w backend`
 
 ## More Docs
 

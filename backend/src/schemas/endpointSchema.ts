@@ -5,6 +5,8 @@ export {
   EndpointWithIdSchema,
   SimulatorEndpointSchema,
   TransmitResultSchema,
+  getEndpointFallbackKey,
+  getEndpointImportKey,
 } from '../../../shared/src';
 
 export type {

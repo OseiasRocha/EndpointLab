@@ -1,3 +1,5 @@
+/* eslint-disable no-process-env */
+import { randomUUID } from 'crypto';
 import path from 'path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
@@ -19,6 +21,7 @@ function ensureSchema(dbFile: Database.Database): void {
   dbFile.exec(`
     CREATE TABLE IF NOT EXISTS endpoints (
       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      external_id TEXT NOT NULL,
       name TEXT NOT NULL,
       description TEXT,
       protocol TEXT NOT NULL,
@@ -28,7 +31,8 @@ function ensureSchema(dbFile: Database.Database): void {
       path TEXT,
       request_body TEXT,
       has_response INTEGER NOT NULL DEFAULT 0,
-      response_body TEXT
+      response_body TEXT,
+      "group" TEXT
     );
   `);
 
@@ -38,6 +42,7 @@ function ensureSchema(dbFile: Database.Database): void {
 
   const existing = new Set(columns.map((column) => column.name));
   const addColumnStatements: Record<string, string> = {
+    external_id: 'ALTER TABLE endpoints ADD COLUMN external_id TEXT;',
     description: 'ALTER TABLE endpoints ADD COLUMN description TEXT;',
     http_method: 'ALTER TABLE endpoints ADD COLUMN http_method TEXT;',
     path: 'ALTER TABLE endpoints ADD COLUMN path TEXT;',
@@ -52,4 +57,21 @@ function ensureSchema(dbFile: Database.Database): void {
       dbFile.exec(statement);
     }
   }
+
+  const rowsMissingExternalId = dbFile
+    .prepare('SELECT id FROM endpoints WHERE external_id IS NULL OR external_id = \'\';')
+    .all() as Array<{ id: number }>;
+
+  const updateExternalId = dbFile.prepare(
+    'UPDATE endpoints SET external_id = ? WHERE id = ?;',
+  );
+
+  for (const row of rowsMissingExternalId) {
+    updateExternalId.run(randomUUID(), row.id);
+  }
+
+  dbFile.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS endpoints_external_id_idx
+    ON endpoints(external_id);
+  `);
 }

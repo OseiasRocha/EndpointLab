@@ -8,10 +8,23 @@ import type { SimulatorEndpoint, EndpointInput, TransmitResult } from '@shared';
 
 const BASE = '/api/endpoints';
 
+async function getErrorMessage(res: Response): Promise<string> {
+  const contentType = res.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    const err = await res.json().catch(() => null) as
+      | { message?: string; error?: string }
+      | null;
+    return err?.message ?? err?.error ?? res.statusText;
+  }
+
+  const text = await res.text().catch(() => '');
+  return text || res.statusText;
+}
+
 async function handleResponse<T>(res: Response, schema: z.ZodType<T>): Promise<T> {
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error((err as { message?: string }).message ?? res.statusText);
+    throw new Error(await getErrorMessage(res));
   }
   const json: unknown = await res.json();
   return schema.parse(json);
@@ -42,7 +55,11 @@ export const endpointsApi = {
 
   remove(id: number): Promise<void> {
     return fetch(`${BASE}/${id}`, { method: 'DELETE' }).then((res) => {
-      if (!res.ok) throw new Error(res.statusText);
+      if (!res.ok) {
+        return getErrorMessage(res).then((message) => {
+          throw new Error(message);
+        });
+      }
     });
   },
 

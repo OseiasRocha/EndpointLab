@@ -30,7 +30,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import type { SimulatorEndpoint, Protocol } from '../types/endpoint';
 import type { EndpointInput } from '@shared';
 import { endpointsApi } from '../api/endpoints';
-import { useColorMode } from '../App';
+import { useColorMode } from '../context/colorMode';
 import EndpointCard from '../components/EndpointCard';
 import AddEditDialog from '../components/AddEditDialog';
 import ExportDialog from '../components/ExportDialog';
@@ -153,8 +153,10 @@ export default function HomePage() {
   function openAdd() { setEditing(undefined); setDialogOpen(true); }
   function openEdit(ep: SimulatorEndpoint) { setEditing(ep); setDialogOpen(true); }
   function openCopy(ep: SimulatorEndpoint) {
-    const { id: _id, ...rest } = ep;
-    setEditing({ ...rest, name: `Copy of ${ep.name}` } as SimulatorEndpoint);
+    const copy = { ...ep };
+    delete copy.id;
+    delete copy.externalId;
+    setEditing({ ...copy, name: `Copy of ${ep.name}` } as SimulatorEndpoint);
     setDialogOpen(true);
   }
 
@@ -176,15 +178,20 @@ export default function HomePage() {
   }
 
   async function handleBulkImport(data: EndpointInput[]) {
-    const { created, updated } = await endpointsApi.bulkUpsert(data);
-    setEndpoints(eps => {
-      const updatedIds = new Set(updated.map(u => u.id));
-      return [...eps.filter(e => !updatedIds.has(e.id)), ...updated, ...created];
-    });
-    const parts: string[] = [];
-    if (created.length) parts.push(`${created.length} added`);
-    if (updated.length) parts.push(`${updated.length} updated`);
-    setToast({ msg: `Imported: ${parts.join(', ')}`, severity: 'success' });
+    try {
+      const { created, updated } = await endpointsApi.bulkUpsert(data);
+      setEndpoints(eps => {
+        const updatedIds = new Set(updated.map(u => u.id));
+        return [...eps.filter(e => !updatedIds.has(e.id)), ...updated, ...created];
+      });
+      const parts: string[] = [];
+      if (created.length) parts.push(`${created.length} added`);
+      if (updated.length) parts.push(`${updated.length} updated`);
+      setToast({ msg: `Imported: ${parts.join(', ')}`, severity: 'success' });
+    } catch (err) {
+      setToast({ msg: String(err), severity: 'error' });
+      throw err;
+    }
   }
 
   async function handleDelete(id: number) {
@@ -428,8 +435,12 @@ export default function HomePage() {
         onClose={() => setDialogOpen(false)}
         onSave={handleSave}
       />
-      <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoints={endpoints} />
-      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} existingEndpoints={endpoints} onImport={handleBulkImport} />
+      {exportOpen && (
+        <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} endpoints={endpoints} />
+      )}
+      {importOpen && (
+        <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} existingEndpoints={endpoints} onImport={handleBulkImport} />
+      )}
 
       <Snackbar
         open={!!toast}

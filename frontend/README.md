@@ -56,8 +56,8 @@ The add/edit dialog enforces a few UI-side rules before submission:
 
 - `name`, `host`, and `port` are required
 - HTTP endpoints must include a path
-- `requestBody` must be valid JSON when present
-- `responseBody` must be valid JSON when `hasResponse` is enabled
+- HTTP request and expected-response bodies must be valid JSON when present
+- TCP and UDP request and expected-response bodies can be plain text
 - Non-HTTP endpoints do not send `httpMethod` or `path`
 - When `hasResponse` is disabled, `responseBody` is omitted from the payload
 
@@ -66,14 +66,15 @@ The add/edit dialog enforces a few UI-side rules before submission:
 Export:
 - Generates `endpoints-export.zip`
 - Writes one JSON file per selected endpoint
-- Removes `id` before exporting
+- Removes `id` before exporting but keeps the stable hidden `externalId`
 - Builds filenames from endpoint name, optional HTTP method, and id/index
 
 Import:
 - Accepts ZIP files containing `.json` endpoint definitions
 - Validates each file with the shared schema
 - Shows invalid entries in the preview
-- Marks matching `name + host + port` rows as updates
+- Marks matching `externalId` rows as updates
+- Falls back to a stricter legacy identity for older files that do not contain `externalId`
 - Sends selected records to the backend bulk upsert endpoint
 
 ## Execute Flow
@@ -104,6 +105,6 @@ Useful scripts:
 | `npm run lint` | Run ESLint |
 | `npm run preview` | Preview the production build |
 
-Current repo note:
-- `npm run build` works
-- `npm run lint` currently fails on existing repo violations, including `react-refresh/only-export-components` in `src/App.tsx`
+Verified in this repo:
+- `npm run build`
+- `npm run lint`

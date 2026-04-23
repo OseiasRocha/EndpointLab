@@ -24,15 +24,19 @@ Useful scripts:
 | --- | --- |
 | `npm run dev:basic` | Starts the API with `config/.env.development` |
 | `npm run dev:watch` | Runs `dev:basic` through `nodemon` |
+| `npm run dev` | Alias for `dev:watch` |
+| `npm run build` | Lints and builds the backend |
 | `npm run build:docker` | Builds the backend artifacts used by the Docker image |
+| `npm run start` | Starts the compiled production build |
 | `npm run type-check` | Runs TypeScript in no-emit mode |
 | `npm run lint` | Runs ESLint |
 | `npm run test` | Runs Vitest |
 
-Current repo notes:
-- `npm run dev` is not the recommended entry point right now because it still depends on a missing `bs-config.js`.
-- `npm run build` is a legacy script that first runs lint and then includes older static copy steps.
-- `npm run test` currently exits with "No test files found".
+Verified in this repo:
+- `npm run build`
+- `npm run build:docker`
+- `npm run start`
+- `npm run test`
 
 ## Environment Variables
 
@@ -80,8 +84,8 @@ Important validation rules:
 - `httpMethod` and `path` are required for HTTP endpoints
 
 Bulk upsert behavior:
-- Existing rows are matched by `name + host + port`
-- Matches are updated in place
+- Imported rows with `externalId` are matched and updated in place
+- Older rows without `externalId` fall back to a stricter legacy identity of name, protocol, host, port, method, and path
 - Non-matches are inserted
 
 ## Transmission Behavior

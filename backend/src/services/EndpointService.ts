@@ -28,10 +28,11 @@ function upsertMany(data: EndpointInput[]): { created: IEndpoint[]; updated: IEn
 }
 
 function updateOne(id: number, data: EndpointInput): IEndpoint {
-  if (!EndpointRepo.persists(id)) {
+  const existing = EndpointRepo.getById(id);
+  if (!existing) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.NOT_FOUND);
   }
-  return EndpointRepo.update(id, data);
+  return EndpointRepo.update(id, { ...data, externalId: data.externalId ?? existing.externalId });
 }
 
 function deleteOne(id: number): void {

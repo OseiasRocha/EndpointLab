@@ -230,7 +230,7 @@ export default function EndpointCard({ endpoint, onEdit, onDelete, onCopy, onDra
           )}
 
           <JsonDisplay label="Request Body" value={endpoint.requestBody} />
-          {endpoint.hasResponse && <JsonDisplay label="Response Body" value={endpoint.responseBody} />}
+          {endpoint.hasResponse && <JsonDisplay label="Expected Response" value={endpoint.responseBody} />}
 
           <Box sx={{ mt: 2 }}>
             <Button

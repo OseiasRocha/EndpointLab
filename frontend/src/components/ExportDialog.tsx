@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import JSZip from 'jszip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -25,11 +25,9 @@ interface Props {
 
 export default function ExportDialog({ open, onClose, endpoints }: Props) {
   // Use index as selection key — id can be undefined for unsaved copies
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-
-  useEffect(() => {
-    if (open) setSelected(new Set(endpoints.map((_, i) => i)));
-  }, [open, endpoints]);
+  const [selected, setSelected] = useState<Set<number>>(
+    () => new Set(endpoints.map((_, i) => i)),
+  );
 
   const allSelected = selected.size === endpoints.length && endpoints.length > 0;
   const noneSelected = selected.size === 0;
@@ -55,7 +53,8 @@ export default function ExportDialog({ open, onClose, endpoints }: Props) {
     const zip = new JSZip();
     endpoints.forEach((ep, i) => {
       if (!selected.has(i)) return;
-      const { id: _id, ...data } = ep;
+      const data = { ...ep };
+      delete data.id;
       const safeName = ep.name.replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
       const methodPart = ep.protocol === 'HTTP' && ep.httpMethod ? `-${ep.httpMethod.toLowerCase()}` : '';
       const idPart = ep.id != null ? `-${ep.id}` : `-${i}`;

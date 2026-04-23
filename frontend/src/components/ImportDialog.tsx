@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import JSZip from 'jszip';
-import { EndpointSchema } from '@shared';
+import { EndpointSchema, getEndpointFallbackKey } from '@shared';
 import type { SimulatorEndpoint, EndpointInput } from '@shared';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -69,9 +69,9 @@ export default function ImportDialog({ open, onClose, existingEndpoints, onImpor
             const msg = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
             parsed.push({ filename, error: msg });
           } else {
-            const willUpdate = existingEndpoints.some(
-              e => e.name === result.data.name && e.host === result.data.host && e.port === result.data.port
-            );
+            const willUpdate = result.data.externalId
+              ? existingEndpoints.some((e) => e.externalId === result.data.externalId)
+              : existingEndpoints.some((e) => getEndpointFallbackKey(e) === getEndpointFallbackKey(result.data));
             parsed.push({ filename, data: result.data, willUpdate });
           }
         } catch {
@@ -234,7 +234,7 @@ export default function ImportDialog({ open, onClose, existingEndpoints, onImpor
                         entry.error
                           ? entry.error
                           : entry.willUpdate
-                          ? `Will overwrite: ${entry.data!.host}:${entry.data!.port}`
+                          ? `Will update: ${entry.data!.host}:${entry.data!.port}`
                           : `${entry.data!.host}:${entry.data!.port}${entry.data!.path ?? ''}`
                       }
                       secondaryTypographyProps={{
