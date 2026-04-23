@@ -1,151 +1,239 @@
 # EndpointLab
 
-EndpointLab is a full-stack app for creating and testing simulated endpoints (HTTP, TCP, UDP).
+EndpointLab is a full-stack workspace for storing endpoint definitions and firing test transmissions to them over HTTP, TCP, and UDP.
 
-It includes:
-- A React UI to create, edit, delete, and test endpoints
-- An Express backend API with SQLite persistence
-- Optional Python listener (`listener.py`) for local protocol testing
+It gives you:
+- A React UI for creating, organizing, importing, exporting, and executing endpoint definitions
+- An Express API with SQLite persistence
+- An optional local Python listener for receiving requests and sending back simple test responses
+
+EndpointLab does not host the configured endpoints itself. The saved records are targets to send traffic to. If you want something local to receive that traffic, run `listener.py`.
 
 Docker Hub image:
 - https://hub.docker.com/r/oseiasrocha/endpointlab
 
 ## Features
 
-- Manage endpoint definitions from the UI
-- Duplicate any endpoint prefilled into the form for quick customization
-- Send test transmissions to configured endpoints
-- Store endpoint data in SQLite
-- Run as local dev stack or as a single Docker container
-- HTTPS support via volume-mounted certificates (Docker)
-- Export endpoints to a ZIP archive and import them back
+- Create, edit, duplicate, delete, search, and filter endpoint definitions
+- Group endpoints and move them between groups with drag and drop
+- Execute HTTP, TCP, and UDP transmissions from the UI
+- Store an expected JSON response and compare it with the received response in the UI
+- Import and export endpoint definitions as ZIP archives
+- Persist data in SQLite
+- Run locally as separate frontend and backend processes or as a single Docker container
+- Optionally serve HTTPS when `cert.pem` and `key.pem` are available
 
-## Project Structure
+## Repository Layout
 
-- `frontend/` React + Vite UI
-- `backend/` Express + TypeScript API
-- `shared/` Shared Zod schemas/types
-- `listener.py` Optional protocol listener (TCP enabled by default when run)
+- `frontend/` React 19 + Vite + MUI client
+- `backend/` Express 5 + TypeScript API and SQLite access
+- `shared/` Shared Zod schemas and TypeScript types
+- `listener.py` Optional local HTTP/TCP/UDP receiver for manual testing
+- `certs/` PEM files for local HTTPS experiments
 
-## Run Locally (Manual)
+## How It Works
+
+1. The frontend calls the backend API under `/api/endpoints`.
+2. The backend stores endpoint definitions in SQLite.
+3. Clicking **Execute** on a card calls `POST /api/endpoints/:id/send`.
+4. The backend opens an outgoing HTTP, TCP, or UDP connection to the saved target.
+5. If the endpoint expects a response, the UI shows the received payload and, when possible, diffs it against the saved expected JSON.
+
+## Endpoint Shape
+
+Each saved endpoint uses this schema:
+
+```json
+{
+  "name": "Local TCP echo",
+  "description": "Optional note",
+  "protocol": "TCP",
+  "host": "localhost",
+  "port": 18081,
+  "httpMethod": null,
+  "path": null,
+  "requestBody": "{\"hello\":true}",
+  "hasResponse": true,
+  "responseBody": "{\"response\":2}",
+  "group": "Local listeners"
+}
+```
+
+Notes:
+- `httpMethod` and `path` are required when `protocol` is `HTTP`.
+- `responseBody` is an expected response used by the UI for comparison. It is not served by the backend.
+- Import and bulk upsert match existing rows by `name + host + port`.
+
+## API Summary
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/endpoints` | List all saved endpoints |
+| `POST /api/endpoints` | Create one endpoint |
+| `PUT /api/endpoints/:id` | Update one endpoint |
+| `DELETE /api/endpoints/:id` | Delete one endpoint |
+| `POST /api/endpoints/bulk` | Bulk import with create-or-update behavior |
+| `POST /api/endpoints/:id/send` | Execute a transmission and return the result |
+
+Bulk import returns:
+
+```json
+{
+  "created": [],
+  "updated": []
+}
+```
+
+Transmission results look like:
+
+```json
+{
+  "success": true,
+  "responseBody": "{\"status\":\"ok\"}",
+  "latencyMs": 12
+}
+```
+
+## Local Development
 
 ### Prerequisites
 
 - Node.js 22+
 - npm
+- Python 3 if you want to run `listener.py`
 
-### 1) Install dependencies
+### Install dependencies
 
-From repo root:
+From the repository root:
 
 ```bash
 npm ci
 ```
 
-### 2) Run backend
+The repo uses npm workspaces, so install once at the root.
 
-In terminal 1:
+### Start the backend
+
+Use the backend's direct dev entry point:
 
 ```bash
-npm run dev -w backend
+npm run dev:basic -w backend
 ```
 
-Backend runs on `http://localhost:3000` in development.
+The backend reads `backend/config/.env.development` by default and serves the API on `http://localhost:3000`.
 
-### 3) Run frontend
+If you want a fresh local database instead of the checked-in example DB, point `DB_PATH` somewhere else:
 
-In terminal 2:
+```bash
+DB_PATH=/tmp/endpointlab.sqlite npm run dev:basic -w backend
+```
+
+### Start the frontend
+
+In a second terminal:
 
 ```bash
 npm run dev -w frontend
 ```
 
-Frontend runs on `http://localhost:5173` (default Vite port).
+Vite serves the UI on `http://localhost:5173` and proxies `/api` to `http://localhost:3000`.
 
-The frontend proxies `/api` requests to `http://localhost:3000`.
+### Optional: run the local listener
 
-### 4) Optional: run listener manually
-
-In terminal 3:
+In a third terminal:
 
 ```bash
 python3 listener.py
 ```
 
-You can configure listener behavior with env vars:
+Defaults:
+- HTTP listener disabled on `18080`
+- TCP listener enabled on `18081`
+- UDP listener disabled on `18082`
+
+Listener environment variables:
+- `LISTENER_HOST`
 - `LISTENER_ENABLE_HTTP`
 - `LISTENER_ENABLE_TCP`
 - `LISTENER_ENABLE_UDP`
 - `LISTENER_HTTP_PORT`
 - `LISTENER_TCP_PORT`
 - `LISTENER_UDP_PORT`
-- `LISTENER_HOST`
 
-## Run With Docker
+## Data Storage
 
-### Option A: Pull prebuilt image from Docker Hub
+Local development defaults to:
+- `backend/src/repos/db.sqlite`
+
+That SQLite database is checked into this repository and currently contains example rows. SQLite WAL sidecar files may also appear beside it.
+
+Docker defaults to:
+- `/app/data/db.sqlite`
+
+The backend auto-creates the `endpoints` table and adds missing columns on startup.
+
+## Import And Export
+
+Export behavior:
+- The UI creates `endpoints-export.zip`
+- Each selected endpoint is stored as one JSON file
+- The exported JSON omits `id`
+
+Import behavior:
+- The UI reads every `.json` file in the ZIP
+- Each file is validated against the shared endpoint schema
+- Invalid files are listed and cannot be selected
+- Matching endpoints are updated when `name`, `host`, and `port` already exist
+- Non-matching endpoints are created
+
+## Docker
+
+### Pull the published image
 
 ```bash
 docker pull oseiasrocha/endpointlab:latest
 docker run -p 8080:8080 -p 8443:8443 \
   -v endpointlab-data:/app/data \
-  -v /path/to/your/certs:/app/certs \
+  -v "$(pwd)/certs:/app/certs" \
   oseiasrocha/endpointlab:latest
 ```
 
-App will be available at `http://localhost:8080` and `https://localhost:8443`.
-
-### Option B: Build locally
+### Build locally
 
 ```bash
 docker build -t endpointlab .
 docker run -p 8080:8080 -p 8443:8443 \
   -v endpointlab-data:/app/data \
-  -v /path/to/your/certs:/app/certs \
+  -v "$(pwd)/certs:/app/certs" \
   endpointlab
 ```
 
-> **Note:** The `-v endpointlab-data:/app/data` flag mounts a named Docker volume so data persists across container recreations. Without it, Docker creates an anonymous volume that is tied to the container and lost when it is removed. You can also use a bind mount (`-v ./data:/app/data`) if you prefer a local directory. The default database path is `/app/data/db.sqlite` and can be overridden with `-e DB_PATH=<path>`.
+Container defaults:
+- HTTP on `http://localhost:8080`
+- HTTPS on `https://localhost:8443`
+- `PORT=8080`
+- `HTTPS_PORT=8443`
+- `CERT_DIR=/app/certs`
+- `DB_PATH=/app/data/db.sqlite`
 
-> **HTTPS:** The Docker image expects TLS certificates to be provided via a volume mounted at `/app/certs`. Place your `cert.pem` and `key.pem` files in the directory you mount there. If the certificate files are not found, HTTPS is skipped and only HTTP is served. You can override the cert directory with `-e CERT_DIR=<path>` and the HTTPS port with `-e HTTPS_PORT=<port>`. To disable HTTPS entirely, omit `HTTPS_PORT`.
+Notes:
+- The Docker image bundles the built frontend into `backend/dist/public`.
+- If `cert.pem` and `key.pem` are missing from `CERT_DIR`, HTTPS is skipped.
+- `listener.py` is not included in the Docker image.
 
-> **Note:** `listener.py` is not included in the Docker image. To use the listener, run it locally alongside the container (see [Run Locally](#run-locally-manual)).
+## Working Script Notes
 
-## Duplicating an Endpoint
+These details reflect the current repository state:
 
-Each endpoint card has a **Duplicate** button (copy icon, to the left of the edit pencil). Clicking it opens the "Add New Endpoint" form pre-filled with all the data from the original, with the name prefixed `Copy of …`. Edit any fields and click **Add Endpoint** to save the copy as a new entry.
+- `npm run build -w frontend` works
+- `npm run build:docker -w backend` works
+- `npm run type-check -w backend` works
+- `npm run dev -w backend` is stale and fails because `bs-config.js` is missing
+- `npm run lint -w frontend` currently fails on existing lint violations
+- `npm run lint -w backend` currently fails on an existing lint violation in `TransmitService.ts`
+- `npm run test -w backend` currently exits with "No test files found"
 
-## Import / Export
+## More Docs
 
-Endpoints can be exported and imported from the toolbar in the top-left of the UI.
-
-### Export
-
-1. Click **Export** in the toolbar.
-2. Select the endpoints to export (all are pre-selected; use **Select All** to toggle).
-3. Click **Export ZIP** — the browser downloads `endpoints-export.zip`.
-
-Each endpoint is saved as a separate JSON file inside the archive (`{name}-{id}.json`). The `id` field is stripped so files can be imported into any instance.
-
-### Import
-
-1. Click **Import** in the toolbar.
-2. Select a `.zip` file previously exported from EndpointLab.
-3. A preview lists every endpoint found in the archive:
-   - **Valid** — will be imported.
-   - **Duplicate** — an endpoint with the same name, host, and port already exists; it will be skipped.
-   - **Invalid** — the JSON does not match the expected schema; it will be skipped.
-4. Click **Import N** to confirm. A toast confirms how many endpoints were created.
-
-## Useful Commands
-
-```bash
-# Backend
-npm run lint -w backend
-npm run type-check -w backend
-npm run build:docker -w backend
-
-# Frontend
-npm run lint -w frontend
-npm run build -w frontend
-```
+- [backend/README.md](backend/README.md)
+- [frontend/README.md](frontend/README.md)

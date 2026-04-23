@@ -1,39 +1,121 @@
-## About
+# Backend
 
-This project was created with [express-generator-typescript](https://github.com/seanpmaxwell/express-generator-typescript).
+The backend is an Express 5 API that stores endpoint definitions in SQLite and executes outbound HTTP, TCP, and UDP transmissions on demand.
 
-## Available Scripts
+## Responsibilities
 
-### `npm run clean-install`
+- Validate payloads with the shared Zod schema
+- Persist endpoint definitions in SQLite through Drizzle and `better-sqlite3`
+- Serve the built frontend in production
+- Optionally expose HTTPS when PEM files are available
+- Execute outgoing transmissions with a 5 second timeout
 
-Remove the existing `node_modules/` folder, `package-lock.json`, and reinstall all library modules.
+## Runtime
 
-### `npm run dev` 
+Default development entry point:
 
-Run the server in development with hot reloading and browser refresh (see `package.json` for all `npm run dev` variations)<br/>
+```bash
+npm run dev:basic
+```
 
-**IMPORTANT** development mode uses `swc` for performance reasons which DOES NOT check for typescript errors. Run `npm run type-check` to check for type errors. NOTE: you should use your IDE to prevent most type errors.
+Useful scripts:
 
-### `npm test`
+| Script | What it does |
+| --- | --- |
+| `npm run dev:basic` | Starts the API with `config/.env.development` |
+| `npm run dev:watch` | Runs `dev:basic` through `nodemon` |
+| `npm run build:docker` | Builds the backend artifacts used by the Docker image |
+| `npm run type-check` | Runs TypeScript in no-emit mode |
+| `npm run lint` | Runs ESLint |
+| `npm run test` | Runs Vitest |
 
-Run unit-tests with <a href="https://vitest.dev/guide/">vitest</a>.
+Current repo notes:
+- `npm run dev` is not the recommended entry point right now because it still depends on a missing `bs-config.js`.
+- `npm run build` is a legacy script that first runs lint and then includes older static copy steps.
+- `npm run test` currently exits with "No test files found".
 
-### `npm run lint`
+## Environment Variables
 
-Check for linting errors.
+The code currently consumes these runtime variables:
 
-### `npm run build`
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `NODE_ENV` | Express environment | from `config/.env.*` |
+| `PORT` | HTTP port | `3000` in development |
+| `DB_PATH` | SQLite file path | `src/repos/db.sqlite` relative to compiled backend |
+| `HTTPS_PORT` | Optional HTTPS port | unset unless provided |
+| `CERT_DIR` | Directory containing `key.pem` and `cert.pem` | unset unless provided |
 
-Build the project for production.
+Notes:
+- The `.env` files also contain `HOST`, but the current backend code does not read it.
+- HTTPS only starts when both `HTTPS_PORT` and `CERT_DIR` are set and the PEM files exist.
 
-### `npm start`
+## API Routes
 
-Run the production build (Must be built first).
+Base path:
 
-### `npm run type-check`
+```text
+/api/endpoints
+```
 
-Check for typescript errors.
+Routes:
 
-## Additional Notes
+| Method | Path | Behavior |
+| --- | --- | --- |
+| `GET` | `/` | Return all endpoints |
+| `POST` | `/` | Create one endpoint |
+| `POST` | `/bulk` | Validate an array and bulk upsert |
+| `PUT` | `/:id` | Update one endpoint |
+| `DELETE` | `/:id` | Delete one endpoint |
+| `POST` | `/:id/send` | Execute one saved endpoint |
 
-- If `npm run dev` gives you issues with bcrypt on MacOS you may need to run: `npm rebuild bcrypt --build-from-source`.
+## Schema
+
+The backend re-exports the shared schema from `shared/src/index.ts`.
+
+Important validation rules:
+- `name` and `host` are required
+- `port` must be an integer from `1` to `65535`
+- `protocol` must be `HTTP`, `TCP`, or `UDP`
+- `httpMethod` and `path` are required for HTTP endpoints
+
+Bulk upsert behavior:
+- Existing rows are matched by `name + host + port`
+- Matches are updated in place
+- Non-matches are inserted
+
+## Transmission Behavior
+
+`POST /api/endpoints/:id/send` loads the saved row and dispatches by protocol:
+
+- HTTP uses Node's `http` module
+- TCP uses `net.createConnection`
+- UDP uses `dgram.createSocket('udp4')`
+
+Transmission details:
+- Timeout is `5000ms`
+- `requestBody` is sent as-is
+- For HTTP requests, `Content-Type` is always `application/json`
+- `hasResponse=false` returns success as soon as the request is sent or the socket is closed
+- `hasResponse=true` waits for a response body and includes it in the result
+
+The configured `responseBody` on an endpoint is not used by the backend transmitter. That field is for frontend-side expected-response comparison.
+
+## Storage
+
+Database details:
+- SQLite via `better-sqlite3`
+- Default file in this repo: `src/repos/db.sqlite`
+- WAL mode enabled on startup
+- Table creation and column backfill happen automatically in `src/db/index.ts`
+
+The checked-in database currently contains example rows, so a fresh clone may already show endpoints in the UI.
+
+## Production Serving
+
+In production mode the backend:
+- Enables `helmet`
+- Serves static assets from `dist/public`
+- Falls back to `index.html` for client-side routing
+
+This is how the Docker image serves the full app from one process.
