@@ -24,6 +24,9 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Local HTTPS certificates
+certs/
+
 # Python artifacts (listener)
 __pycache__/
 *.py[cod]

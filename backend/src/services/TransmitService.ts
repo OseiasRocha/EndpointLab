@@ -2,6 +2,7 @@ import dgram from 'dgram';
 import http from 'http';
 import https from 'https';
 import net from 'net';
+import tls from 'tls';
 
 import type { IEndpoint, TransmitResult } from '../../../shared/src';
 
@@ -10,6 +11,13 @@ import type { IEndpoint, TransmitResult } from '../../../shared/src';
 ******************************************************************************/
 
 const TIMEOUT_MS = 5000;
+const HTTPS_CA_CERTIFICATES = Array.from(
+  new Set([
+    ...tls.getCACertificates('bundled'),
+    ...tls.getCACertificates('system'),
+    ...tls.getCACertificates('extra'),
+  ]),
+);
 
 /******************************************************************************
                                 Functions
@@ -32,6 +40,7 @@ function transmitWeb(
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),
         },
+        ...(client === https ? { ca: HTTPS_CA_CERTIFICATES } : {}),
       },
       (res) => {
         let data = '';

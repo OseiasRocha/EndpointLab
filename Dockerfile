@@ -52,4 +52,3 @@ ENV NODE_ENV=production \
 WORKDIR /app/backend
 
 CMD ["node", "dist/backend/src/main.js"]
-

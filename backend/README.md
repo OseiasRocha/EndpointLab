@@ -38,6 +38,12 @@ Verified in this repo:
 - `npm run start`
 - `npm run test`
 
+Runtime CA behavior:
+- `npm run dev:basic`, `npm run dev`, and `npm run start` launch Node with `--use-system-ca`
+- This lets the backend process trust locally installed root CAs in addition to Node's bundled roots
+- This affects outbound HTTPS calls and Node-based clients, not the certificate chain served by the backend's own HTTPS listener
+- In Docker, if the backend needs to call an HTTPS endpoint signed by a local CA, mount that CA file into `/app/certs` and pass `NODE_EXTRA_CA_CERTS=/app/certs/<your-ca>.pem`
+
 ## Environment Variables
 
 The code currently consumes these runtime variables:
@@ -49,10 +55,13 @@ The code currently consumes these runtime variables:
 | `DB_PATH` | SQLite file path | `src/repos/db.sqlite` relative to compiled backend |
 | `HTTPS_PORT` | Optional HTTPS port | unset unless provided |
 | `CERT_DIR` | Directory containing `key.pem` and `cert.pem` | unset unless provided |
+| `NODE_EXTRA_CA_CERTS` | Extra CA bundle used by Node HTTPS clients | unset unless provided |
 
 Notes:
 - The `.env` files also contain `HOST`, but the current backend code does not read it.
 - HTTPS only starts when both `HTTPS_PORT` and `CERT_DIR` are set and the PEM files exist.
+- When serving HTTPS, the backend prefers `fullchain.pem` if present. Otherwise it uses `cert.pem`, and appends `chain.pem` when available.
+- Certificate files are expected to come from a mounted local directory or volume, not from repo-tracked files.
 
 ## API Routes
 
@@ -108,8 +117,11 @@ Transmission details:
 - Timeout is `5000ms`
 - `requestBody` is sent as-is
 - For HTTP and HTTPS requests, `Content-Type` is always `application/json`
+- HTTPS requests use Node's bundled roots plus the machine's installed system roots
 - `hasResponse=false` returns success as soon as the request is sent or the socket is closed
 - `hasResponse=true` waits for a response body and includes it in the result
+
+If an HTTPS target uses a certificate chain signed by a locally installed root CA, the backend now attempts to trust it through the system CA store. For the backend's own HTTPS server, clients still need the backend to present the correct certificate chain and hostname.
 
 The configured `responseBody` on an endpoint is not used by the backend transmitter. That field is for frontend-side expected-response comparison.
 

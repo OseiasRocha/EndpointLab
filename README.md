@@ -29,7 +29,6 @@ Docker Hub image:
 - `backend/` Express 5 + TypeScript API and SQLite access
 - `shared/` Shared Zod schemas and TypeScript types
 - `listener.py` Optional local HTTP/TCP/UDP receiver for manual testing
-- `certs/` PEM files for local HTTPS experiments
 
 ## How It Works
 
@@ -64,6 +63,8 @@ Notes:
 - `httpMethod` and `path` are required when `protocol` is `HTTP` or `HTTPS`.
 - `responseBody` is an expected response used by the UI for comparison. It is not served by the backend.
 - Exported files keep a stable hidden `externalId` so imports can update the same logical endpoint without clobbering unrelated ones.
+- HTTPS transmissions use Node's bundled CA roots plus the locally installed system CA roots.
+- For the backend's own HTTPS listener, use `fullchain.pem` when available, or `cert.pem` plus `chain.pem`, so clients receive the full certificate chain.
 
 ## API Summary
 
@@ -114,6 +115,12 @@ npm ci
 ```
 
 The repo uses npm workspaces, so install once at the root.
+
+Backend CA behavior:
+- The backend launch scripts run Node with `--use-system-ca`
+- This helps outbound HTTPS endpoint execution and Node-based clients trust locally installed root CAs
+- For clients calling the backend's HTTPS server, trust depends on the certificate chain the backend presents and the certificate hostname/SANs
+- Keep local HTTPS material outside Git and mount it at runtime.
 
 ### Start the backend
 
@@ -197,8 +204,9 @@ Import behavior:
 ```bash
 docker pull oseiasrocha/endpointlab:latest
 docker run -p 8080:8080 -p 8443:8443 \
+  -e NODE_EXTRA_CA_CERTS=/app/certs/rootCA.pem \
   -v endpointlab-data:/app/data \
-  -v "$(pwd)/certs:/app/certs" \
+  -v /path/to/local-certs:/app/certs \
   oseiasrocha/endpointlab:latest
 ```
 
@@ -207,8 +215,9 @@ docker run -p 8080:8080 -p 8443:8443 \
 ```bash
 docker build -t endpointlab .
 docker run -p 8080:8080 -p 8443:8443 \
+  -e NODE_EXTRA_CA_CERTS=/app/certs/rootCA.pem \
   -v endpointlab-data:/app/data \
-  -v "$(pwd)/certs:/app/certs" \
+  -v /path/to/local-certs:/app/certs \
   endpointlab
 ```
 
@@ -219,12 +228,16 @@ Container defaults:
 - `HTTPS_PORT=8443`
 - `CERT_DIR=/app/certs`
 - `DB_PATH=/app/data/db.sqlite`
+- `NODE_EXTRA_CA_CERTS=/app/certs/rootCA.pem` in the recommended local HTTPS setup
 
 Notes:
 - The Docker image bundles the built frontend into `backend/dist/public`.
 - If `cert.pem` and `key.pem` are missing from `CERT_DIR`, HTTPS is skipped.
 - `listener.py` is not included in the Docker image.
 - Interactive backend API docs are available at `/api/docs`.
+- If your HTTPS certificate is signed by an intermediate CA, mount `fullchain.pem` or provide `cert.pem` plus `chain.pem` in `/app/certs`.
+- Keep `/app/certs` as a mounted local directory or volume, not repo-tracked content.
+- If the backend needs to call an HTTPS endpoint signed by your local CA, mount that CA file in `/app/certs` and set `NODE_EXTRA_CA_CERTS` to its path.
 
 ## Verified Commands
 
