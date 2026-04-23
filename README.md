@@ -13,6 +13,7 @@ Docker Hub image:
 ## Features
 
 - Manage endpoint definitions from the UI
+- Duplicate any endpoint prefilled into the form for quick customization
 - Send test transmissions to configured endpoints
 - Store endpoint data in SQLite
 - Run as local dev stack or as a single Docker container
@@ -109,6 +110,10 @@ docker run -p 8080:8080 -p 8443:8443 \
 > **HTTPS:** The Docker image expects TLS certificates to be provided via a volume mounted at `/app/certs`. Place your `cert.pem` and `key.pem` files in the directory you mount there. If the certificate files are not found, HTTPS is skipped and only HTTP is served. You can override the cert directory with `-e CERT_DIR=<path>` and the HTTPS port with `-e HTTPS_PORT=<port>`. To disable HTTPS entirely, omit `HTTPS_PORT`.
 
 > **Note:** `listener.py` is not included in the Docker image. To use the listener, run it locally alongside the container (see [Run Locally](#run-locally-manual)).
+
+## Duplicating an Endpoint
+
+Each endpoint card has a **Duplicate** button (copy icon, to the left of the edit pencil). Clicking it opens the "Add New Endpoint" form pre-filled with all the data from the original, with the name prefixed `Copy of …`. Edit any fields and click **Add Endpoint** to save the copy as a new entry.
 
 ## Import / Export
 

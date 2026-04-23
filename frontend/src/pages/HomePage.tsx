@@ -61,6 +61,12 @@ export default function HomePage() {
     setDialogOpen(true);
   }
 
+  function openCopy(ep: SimulatorEndpoint) {
+    const { id: _id, ...rest } = ep;
+    setEditing({ ...rest, name: `Copy of ${ep.name}` } as SimulatorEndpoint);
+    setDialogOpen(true);
+  }
+
   async function handleSave(data: Omit<SimulatorEndpoint, 'id'>) {
     try {
       if (editing?.id) {
@@ -223,6 +229,7 @@ export default function HomePage() {
                       endpoint={ep}
                       onEdit={openEdit}
                       onDelete={handleDelete}
+                      onCopy={openCopy}
                     />
                   ))}
                 </Box>

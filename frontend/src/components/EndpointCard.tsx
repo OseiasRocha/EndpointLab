@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SendIcon from '@mui/icons-material/Send';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -43,9 +44,10 @@ interface Props {
   endpoint: SimulatorEndpoint;
   onEdit: (endpoint: SimulatorEndpoint) => void;
   onDelete: (id: number) => void;
+  onCopy: (endpoint: SimulatorEndpoint) => void;
 }
 
-export default function EndpointCard({ endpoint, onEdit, onDelete }: Props) {
+export default function EndpointCard({ endpoint, onEdit, onDelete, onCopy }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [sending, setSending] = useState(false);
   const [transmitResult, setTransmitResult] = useState<TransmitResult | null>(null);
@@ -82,9 +84,14 @@ export default function EndpointCard({ endpoint, onEdit, onDelete }: Props) {
     <Box sx={{ position: 'relative', mb: 1 }}>
       {/* Action buttons sit outside AccordionSummary to avoid <button> inside <button> */}
       <Box
-        sx={{ position: 'absolute', top: 0, height: 52, right: 44, display: 'flex', alignItems: 'center', gap: 0.5, zIndex: 1 }}
+        sx={{ position: 'absolute', top: 0, height: 52, right: 44, display: 'flex', alignItems: 'center', gap: 0.5, zIndex: 1, pr: 1 }}
         onClick={e => e.stopPropagation()}
       >
+        <Tooltip title="Duplicate">
+          <IconButton size="small" onClick={() => onCopy(endpoint)}>
+            <ContentCopyIcon fontSize="small" sx={{ color: '#666' }} />
+          </IconButton>
+        </Tooltip>
         <Tooltip title="Edit">
           <IconButton size="small" onClick={() => onEdit(endpoint)}>
             <EditIcon fontSize="small" sx={{ color: '#666' }} />
@@ -113,7 +120,7 @@ export default function EndpointCard({ endpoint, onEdit, onDelete }: Props) {
       >
         <AccordionSummary
           expandIcon={<ExpandMoreIcon sx={{ color: '#666' }} />}
-          sx={{ px: 2, py: 0.5, minHeight: 52, pr: 12 }}
+          sx={{ px: 2, py: 0.5, minHeight: 52, pr: 19 }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
             <ProtocolBadge protocol={endpoint.protocol} httpMethod={endpoint.httpMethod} />
