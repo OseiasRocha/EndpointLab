@@ -116,6 +116,7 @@ export default function JsonDiffDisplay({ label, received, diff }: Props) {
 const codeBoxSx = {
   mt: 0.5,
   bgcolor: '#1e1e1e',
+  color: '#d4d4d4',
   borderRadius: 1,
   fontSize: '0.8rem',
   overflowX: 'auto',

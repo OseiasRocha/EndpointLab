@@ -80,8 +80,8 @@ function bulkCreate(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, msgs);
   }
   const data = parsed.map(r => (r.success ? r.data : null)).filter(Boolean) as ReturnType<typeof EndpointSchema.parse>[];
-  const created = EndpointService.addMany(data);
-  res.status(HttpStatusCodes.CREATED).json(created);
+  const result = EndpointService.upsertMany(data);
+  res.status(HttpStatusCodes.OK).json(result);
 }
 
 /**

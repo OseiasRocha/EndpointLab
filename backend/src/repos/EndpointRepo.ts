@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import db from '../db';
 import { endpoints } from '../db/schema';
@@ -24,8 +24,26 @@ function add(data: EndpointInput): IEndpoint {
   return db.insert(endpoints).values(toRow(data)).returning().get() as IEndpoint;
 }
 
-function bulkAdd(data: EndpointInput[]): IEndpoint[] {
-  return db.insert(endpoints).values(data.map(toRow)).returning().all() as IEndpoint[];
+function findByNameHostPort(name: string, host: string, port: number): IEndpoint | null {
+  return (db.select().from(endpoints)
+    .where(and(eq(endpoints.name, name), eq(endpoints.host, host), eq(endpoints.port, port)))
+    .get() ?? null) as IEndpoint | null;
+}
+
+function bulkUpsert(data: EndpointInput[]): { created: IEndpoint[]; updated: IEndpoint[] } {
+  const created: IEndpoint[] = [];
+  const updated: IEndpoint[] = [];
+  for (const item of data) {
+    const existing = findByNameHostPort(item.name, item.host, item.port);
+    if (existing) {
+      const up = db.update(endpoints).set(toRow(item)).where(eq(endpoints.id, existing.id)).returning().get() as IEndpoint;
+      updated.push(up);
+    } else {
+      const cr = db.insert(endpoints).values(toRow(item)).returning().get() as IEndpoint;
+      created.push(cr);
+    }
+  }
+  return { created, updated };
 }
 
 function update(id: number, data: EndpointInput): IEndpoint {
@@ -49,6 +67,7 @@ function toRow(data: EndpointInput) {
     requestBody: data.requestBody ?? null,
     hasResponse: data.hasResponse,
     responseBody: data.responseBody ?? null,
+    group: data.group ?? null,
   };
 }
 
@@ -61,7 +80,7 @@ export default {
   getById,
   persists,
   add,
-  bulkAdd,
+  bulkUpsert,
   update,
   delete: delete_,
 } as const;

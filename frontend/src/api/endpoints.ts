@@ -52,11 +52,14 @@ export const endpointsApi = {
     );
   },
 
-  bulkCreate(data: EndpointInput[]): Promise<SimulatorEndpoint[]> {
+  bulkUpsert(data: EndpointInput[]): Promise<{ created: SimulatorEndpoint[]; updated: SimulatorEndpoint[] }> {
     return fetch(`${BASE}/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    }).then((res) => handleResponse(res, z.array(EndpointWithIdSchema)));
+    }).then((res) => handleResponse(res, z.object({
+      created: z.array(EndpointWithIdSchema),
+      updated: z.array(EndpointWithIdSchema),
+    })));
   },
 };

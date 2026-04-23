@@ -26,6 +26,7 @@ export const EndpointSchema = z
     requestBody: nullToUndefined(z.string()),
     hasResponse: z.boolean(),
     responseBody: nullToUndefined(z.string()),
+    group: nullToUndefined(z.string()),
   })
   .refine(
     (data) => {

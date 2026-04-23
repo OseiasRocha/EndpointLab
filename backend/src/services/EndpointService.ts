@@ -23,8 +23,8 @@ function addOne(data: EndpointInput): IEndpoint {
   return EndpointRepo.add(data);
 }
 
-function addMany(data: EndpointInput[]): IEndpoint[] {
-  return EndpointRepo.bulkAdd(data);
+function upsertMany(data: EndpointInput[]): { created: IEndpoint[]; updated: IEndpoint[] } {
+  return EndpointRepo.bulkUpsert(data);
 }
 
 function updateOne(id: number, data: EndpointInput): IEndpoint {
@@ -49,7 +49,7 @@ export default {
   Errors,
   getAll,
   addOne,
-  addMany,
+  upsertMany,
   updateOne,
   delete: deleteOne,
 } as const;

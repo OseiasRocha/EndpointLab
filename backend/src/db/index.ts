@@ -44,6 +44,7 @@ function ensureSchema(dbFile: Database.Database): void {
     request_body: 'ALTER TABLE endpoints ADD COLUMN request_body TEXT;',
     has_response: 'ALTER TABLE endpoints ADD COLUMN has_response INTEGER NOT NULL DEFAULT 0;',
     response_body: 'ALTER TABLE endpoints ADD COLUMN response_body TEXT;',
+    group: 'ALTER TABLE endpoints ADD COLUMN "group" TEXT;',
   };
 
   for (const [column, statement] of Object.entries(addColumnStatements)) {

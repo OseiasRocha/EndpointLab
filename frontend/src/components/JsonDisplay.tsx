@@ -20,7 +20,7 @@ export default function JsonDisplay({ label, value }: Props) {
 
   return (
     <Box sx={{ mt: 1.5 }}>
-      <Typography variant="caption" sx={{ fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         {label}
       </Typography>
       <Box

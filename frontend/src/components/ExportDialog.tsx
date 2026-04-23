@@ -24,10 +24,11 @@ interface Props {
 }
 
 export default function ExportDialog({ open, onClose, endpoints }: Props) {
+  // Use index as selection key — id can be undefined for unsaved copies
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    if (open) setSelected(new Set(endpoints.map(e => e.id!)));
+    if (open) setSelected(new Set(endpoints.map((_, i) => i)));
   }, [open, endpoints]);
 
   const allSelected = selected.size === endpoints.length && endpoints.length > 0;
@@ -37,27 +38,29 @@ export default function ExportDialog({ open, onClose, endpoints }: Props) {
     if (allSelected) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(endpoints.map(e => e.id!)));
+      setSelected(new Set(endpoints.map((_, i) => i)));
     }
   }
 
-  function toggle(id: number) {
+  function toggle(index: number) {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return next;
     });
   }
 
   async function handleExport() {
-    const toExport = endpoints.filter(e => selected.has(e.id!));
     const zip = new JSZip();
-    for (const ep of toExport) {
+    endpoints.forEach((ep, i) => {
+      if (!selected.has(i)) return;
       const { id: _id, ...data } = ep;
       const safeName = ep.name.replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
-      zip.file(`${safeName}-${ep.id}.json`, JSON.stringify(data, null, 2));
-    }
+      const methodPart = ep.protocol === 'HTTP' && ep.httpMethod ? `-${ep.httpMethod.toLowerCase()}` : '';
+      const idPart = ep.id != null ? `-${ep.id}` : `-${i}`;
+      zip.file(`${safeName}${methodPart}${idPart}.json`, JSON.stringify(data, null, 2));
+    });
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -94,13 +97,13 @@ export default function ExportDialog({ open, onClose, endpoints }: Props) {
         </ListItem>
         <Divider />
         <List dense disablePadding sx={{ maxHeight: 400, overflowY: 'auto' }}>
-          {endpoints.map(ep => (
-            <ListItem key={ep.id} disablePadding>
-              <ListItemButton onClick={() => toggle(ep.id!)} dense>
+          {endpoints.map((ep, i) => (
+            <ListItem key={i} disablePadding>
+              <ListItemButton onClick={() => toggle(i)} dense>
                 <ListItemIcon>
                   <Checkbox
                     edge="start"
-                    checked={selected.has(ep.id!)}
+                    checked={selected.has(i)}
                     tabIndex={-1}
                     disableRipple
                   />
@@ -118,7 +121,7 @@ export default function ExportDialog({ open, onClose, endpoints }: Props) {
         </List>
       </DialogContent>
       <DialogActions>
-        <Typography variant="caption" sx={{ flex: 1, color: '#888', pl: 2 }}>
+        <Typography variant="caption" sx={{ flex: 1, color: 'text.secondary', pl: 2 }}>
           {selected.size} of {endpoints.length} selected
         </Typography>
         <Button onClick={onClose}>Cancel</Button>
