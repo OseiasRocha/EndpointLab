@@ -25,6 +25,7 @@ import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import DeleteIcon from '@mui/icons-material/Delete';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import type { SimulatorEndpoint, Protocol } from '../types/endpoint';
@@ -204,6 +205,17 @@ export default function HomePage() {
     }
   }
 
+  async function handleDeleteGroup(groupName: string) {
+    const groupEndpoints = endpoints.filter(e => e.group === groupName);
+    try {
+      await Promise.all(groupEndpoints.filter(ep => ep.id !== undefined).map(ep => endpointsApi.remove(ep.id!)));
+      setEndpoints(eps => eps.filter(e => e.group !== groupName));
+      setToast({ msg: `Group "${groupName}" deleted`, severity: 'success' });
+    } catch (err) {
+      setToast({ msg: String(err), severity: 'error' });
+    }
+  }
+
   const filtered = endpoints.filter(ep => {
     const matchesProtocol = protocolFilter === 'ALL' || ep.protocol === protocolFilter;
     const q = search.toLowerCase();
@@ -367,6 +379,15 @@ export default function HomePage() {
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       {groupEps.length} endpoint{groupEps.length !== 1 ? 's' : ''}
                     </Typography>
+                    <Tooltip title="Delete group">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteGroup(groupName); }}
+                        sx={{ p: 0.5, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
                   </Box>
 
                   <Collapse in={!isCollapsed}>
