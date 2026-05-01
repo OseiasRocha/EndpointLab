@@ -1,7 +1,7 @@
 export interface EndpointIdentityLike {
   externalId?: string;
   name: string;
-  protocol: 'HTTP' | 'HTTPS' | 'TCP' | 'UDP';
+  protocol: 'HTTP' | 'HTTPS' | 'TCP' | 'UDP' | 'WS' | 'WSS';
   host: string;
   port: number;
   httpMethod?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -18,6 +18,8 @@ export function getEndpointFallbackKey(endpoint: EndpointIdentityLike): string {
 
   if (endpoint.protocol === 'HTTP' || endpoint.protocol === 'HTTPS') {
     base.push(endpoint.httpMethod ?? '', endpoint.path ?? '');
+  } else if (endpoint.protocol === 'WS' || endpoint.protocol === 'WSS') {
+    base.push(endpoint.path ?? '');
   }
 
   return base.join('|');

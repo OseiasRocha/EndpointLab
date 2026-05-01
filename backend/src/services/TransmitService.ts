@@ -2,8 +2,16 @@ import dgram from 'dgram';
 import http from 'http';
 import https from 'https';
 import net from 'net';
+import type WebSocket from 'ws';
 
 import type { IEndpoint, TransmitResult } from '../../../shared/src';
+import WsManager from './WebSocketManager';
+
+/******************************************************************************
+                                Websockets
+******************************************************************************/
+
+let websockets : [WebSocket];
 
 /******************************************************************************
                                 Constants
@@ -142,12 +150,50 @@ function transmitUdp(endpoint: IEndpoint): Promise<TransmitResult> {
   });
 }
 
+function transmitWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {
+  const start = Date.now();
+  return new Promise((resolve) => {
+    const ws = WsManager.getSocket(endpoint);
+    if (!ws) {
+      return resolve({ success: false, error: 'WebSocket not connected', latencyMs: Date.now() - start });
+    }
+
+    if (endpoint.requestBody) ws.send(endpoint.requestBody);
+
+    if (!endpoint.hasResponse) {
+      return resolve({ success: true, latencyMs: Date.now() - start });
+    }
+
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      ws.off('message', onMessage);
+      settle({ success: false, error: 'Request timed out', latencyMs: Date.now() - start });
+    }, TIMEOUT_MS);
+
+    function settle(result: TransmitResult) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    }
+
+    function onMessage(data: WebSocket.RawData) {
+      settle({ success: true, responseBody: data.toString(), latencyMs: Date.now() - start });
+    }
+
+    ws.once('message', onMessage);
+  });
+}
+
 function transmit(endpoint: IEndpoint): Promise<TransmitResult> {
   switch (endpoint.protocol) {
     case 'HTTP': return transmitWeb(endpoint, http);
     case 'HTTPS': return transmitWeb(endpoint, https);
     case 'TCP': return transmitTcp(endpoint);
     case 'UDP': return transmitUdp(endpoint);
+    case 'WS':
+    case 'WSS': return transmitWebSocket(endpoint);
     default: throw new Error('Unsupported protocol');
   }
 }

@@ -8,6 +8,8 @@ import logger from 'jet-logger';
 
 import EnvVars from './common/constants/env';
 import app from './server';
+import WsManager from './services/WebSocketManager';
+import EndpointRepo from './repos/EndpointRepo';
 
 /******************************************************************************
                                   Run
@@ -16,6 +18,7 @@ import app from './server';
 const httpServer = http.createServer(app);
 httpServer.listen(EnvVars.Port, () => {
   logger.info('Express server started on HTTP port: ' + EnvVars.Port);
+  WsManager.initialize(EndpointRepo.getAll());
 });
 httpServer.on('error', (err: Error) => logger.err(err.message));
 

@@ -37,8 +37,8 @@ import AddEditDialog from '../components/AddEditDialog';
 import ExportDialog from '../components/ExportDialog';
 import ImportDialog from '../components/ImportDialog';
 
-const PROTOCOL_FILTERS: Array<Protocol | 'ALL'> = ['ALL', 'HTTP', 'HTTPS', 'TCP', 'UDP'];
-const PROTOCOLS: Protocol[] = ['HTTP', 'HTTPS', 'TCP', 'UDP'];
+const PROTOCOL_FILTERS: Array<Protocol | 'ALL'> = ['ALL', 'HTTP', 'HTTPS', 'TCP', 'UDP', 'WS', 'WSS'];
+const PROTOCOLS: Protocol[] = ['HTTP', 'HTTPS', 'TCP', 'UDP', 'WS', 'WSS'];
 const UNGROUPED = '__ungrouped__';
 
 // App header color — intentionally always dark regardless of mode (brand identity)

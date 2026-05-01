@@ -17,7 +17,7 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import type { SimulatorEndpoint, Protocol, HttpMethod } from '../types/endpoint';
 
-const PROTOCOLS: Protocol[] = ['HTTP', 'HTTPS', 'TCP', 'UDP'];
+const PROTOCOLS: Protocol[] = ['HTTP', 'HTTPS', 'TCP', 'UDP', 'WS', 'WSS'];
 const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
 
 const EMPTY: Omit<SimulatorEndpoint, 'id'> = {
@@ -48,8 +48,16 @@ function isValidJson(s: string) {
   try { JSON.parse(s); return true; } catch { return false; }
 }
 
-function isWebProtocol(protocol: Protocol) {
+function usesHttpMethod(protocol: Protocol) {
   return protocol === 'HTTP' || protocol === 'HTTPS';
+}
+
+function usesPath(protocol: Protocol) {
+  return protocol === 'HTTP' || protocol === 'HTTPS' || protocol === 'WS' || protocol === 'WSS';
+}
+
+function usesJsonBodies(protocol: Protocol) {
+  return protocol === 'HTTP' || protocol === 'HTTPS' || protocol === 'WS' || protocol === 'WSS';
 }
 
 export default function AddEditDialog({ open, initial, groups, onClose, onSave }: Props) {
@@ -68,9 +76,9 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
     if (!form.name.trim()) e.name = 'Name is required';
     if (!form.host.trim()) e.host = 'Host is required';
     if (!form.port || form.port < 1 || form.port > 65535) e.port = 'Port must be 1–65535';
-    if (isWebProtocol(form.protocol) && !form.path?.trim()) e.path = `Path is required for ${form.protocol}`;
-    if (isWebProtocol(form.protocol) && form.requestBody && !isValidJson(form.requestBody)) e.requestBody = 'Invalid JSON';
-    if (isWebProtocol(form.protocol) && form.hasResponse && form.responseBody && !isValidJson(form.responseBody)) e.responseBody = 'Invalid JSON';
+    if (usesPath(form.protocol) && !form.path?.trim()) e.path = `Path is required for ${form.protocol}`;
+    if (usesJsonBodies(form.protocol) && form.requestBody && !isValidJson(form.requestBody)) e.requestBody = 'Invalid JSON';
+    if (usesJsonBodies(form.protocol) && form.hasResponse && form.responseBody && !isValidJson(form.responseBody)) e.responseBody = 'Invalid JSON';
     return e;
   }
 
@@ -79,16 +87,14 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
     if (Object.keys(e).length) { setErrors(e); return; }
 
     const payload = { ...form };
-    if (!isWebProtocol(payload.protocol)) {
-      delete payload.httpMethod;
-      delete payload.path;
-    }
+    if (!usesHttpMethod(payload.protocol)) delete payload.httpMethod;
+    if (!usesPath(payload.protocol)) delete payload.path;
     if (!payload.hasResponse) delete payload.responseBody;
     onSave(payload);
   }
 
   const isEditing = !!initial?.id;
-  const usesJsonBodies = isWebProtocol(form.protocol);
+  const jsonBodies = usesJsonBodies(form.protocol);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md" PaperProps={{ sx: { borderRadius: 2 } }}>
@@ -155,7 +161,7 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
               </Select>
             </FormControl>
 
-            {isWebProtocol(form.protocol) && (
+            {usesHttpMethod(form.protocol) && (
               <FormControl size="small" sx={{ minWidth: 120 }}>
                 <InputLabel>Method *</InputLabel>
                 <Select
@@ -191,7 +197,7 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
             />
           </Box>
 
-          {isWebProtocol(form.protocol) && (
+          {usesPath(form.protocol) && (
             <TextField
               label="Path *"
               value={form.path ?? ''}
@@ -212,11 +218,11 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
 
           {/* Request body */}
           <TextField
-            label={usesJsonBodies ? 'Request Body (JSON)' : 'Request Body'}
+            label={jsonBodies ? 'Request Body (JSON)' : 'Request Body'}
             value={form.requestBody ?? ''}
             onChange={e => set('requestBody', e.target.value)}
             error={!!errors.requestBody}
-            helperText={errors.requestBody || (usesJsonBodies ? 'Optional JSON payload to send' : 'Optional plain-text payload to send')}
+            helperText={errors.requestBody || (jsonBodies ? 'Optional JSON payload to send' : 'Optional plain-text payload to send')}
             size="small"
             fullWidth
             multiline
@@ -239,11 +245,11 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
           {/* Response body */}
           {form.hasResponse && (
             <TextField
-              label={usesJsonBodies ? 'Expected Response Body (JSON)' : 'Expected Response Body'}
+              label={jsonBodies ? 'Expected Response Body (JSON)' : 'Expected Response Body'}
               value={form.responseBody ?? ''}
               onChange={e => set('responseBody', e.target.value)}
               error={!!errors.responseBody}
-              helperText={errors.responseBody || (usesJsonBodies
+              helperText={errors.responseBody || (jsonBodies
                 ? 'Optional expected JSON payload used for comparison'
                 : 'Optional expected plain-text payload used for comparison')}
               size="small"

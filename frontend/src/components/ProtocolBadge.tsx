@@ -14,6 +14,8 @@ const PROTOCOL_COLORS: Record<Protocol, string> = {
   HTTPS: '#1f9d8b',
   TCP: '#9b59b6',
   UDP: '#e67e22',
+  WS: '#2980b9',
+  WSS: '#1a5276',
 };
 
 interface Props {
