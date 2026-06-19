@@ -272,7 +272,7 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
           />
 
           {/* Response toggle */}
-          <FormControlLabel
+          {usesWebSocketServer(form.protocol, form.websocketType) && (<FormControlLabel
             control={
               <Switch
                 checked={form.hasResponse}
@@ -281,7 +281,7 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
               />
             }
             label="Wait for a response"
-          />
+          />)}
 
           {/* Response body */}
           {form.hasResponse && (
