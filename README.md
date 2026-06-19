@@ -215,6 +215,26 @@ Import behavior:
 
 ## Docker
 
+The application is served at `http://localhost:8080/endpointlab/`. A request to
+`http://localhost:8080/` redirects to that base path.
+
+### Nginx reverse proxy
+
+Preserve the `/endpointlab` prefix when proxying to the container:
+
+```nginx
+location /endpointlab/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+The `proxy_pass` value intentionally has no trailing slash, so Nginx forwards
+`/endpointlab/...` unchanged.
+
 ### Pull the published image
 
 ```bash

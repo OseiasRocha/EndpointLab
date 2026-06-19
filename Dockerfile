@@ -40,7 +40,6 @@ COPY --chown=1000:1000 --from=builder /app/data ./data
 VOLUME ["/app/data"]
 
 EXPOSE 8080
-EXPOSE 8443
 
 ENV NODE_ENV=production \
   PORT=8080 \

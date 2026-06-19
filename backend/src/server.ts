@@ -47,8 +47,9 @@ app.use(Paths._, (_req, res) => {
 if (EnvVars.NodeEnv === NodeEnvs.PRODUCTION) {
   const publicDirCandidates = [path.join(__dirname, 'public'), path.resolve(__dirname, '../../public')];
   const publicDir = publicDirCandidates.find((dir) => fs.existsSync(dir)) ?? publicDirCandidates[0];
-  app.use(express.static(publicDir));
-  app.get('*path', (_, res) => res.sendFile(path.join(publicDir, 'index.html')));
+  app.get('/', (_, res) => res.redirect('/endpointlab/'));
+  app.use('/endpointlab', express.static(publicDir));
+  app.get('/endpointlab/*path', (_, res) => res.sendFile(path.join(publicDir, 'index.html')));
 }
 
 app.use((err: Error, _: Request, res: Response, next: NextFunction) => {

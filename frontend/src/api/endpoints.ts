@@ -6,7 +6,7 @@ import {
 } from '@shared';
 import type { SimulatorEndpoint, EndpointInput, TransmitResult } from '@shared';
 
-const BASE = '/api/endpoints';
+const BASE = `${import.meta.env.BASE_URL}api/endpoints`;
 
 async function getErrorMessage(res: Response): Promise<string> {
   const contentType = res.headers.get('content-type') ?? '';

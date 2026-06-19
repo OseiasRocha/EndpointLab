@@ -20,8 +20,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:3000/endpointlab',
+      '/endpointlab/api': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },
