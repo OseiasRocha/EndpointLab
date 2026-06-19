@@ -26,7 +26,7 @@ function getAll(_: Req, res: Res) {
  *
  * @route POST /api/endpoints
  */
-function create(req: Req, res: Res) {
+async function create(req: Req, res: Res) {
   const result = EndpointSchema.safeParse(req.body);
   if (!result.success) {
     throw new RouteError(
@@ -34,7 +34,7 @@ function create(req: Req, res: Res) {
       formatZodError(result.error),
     );
   }
-  const endpoint = EndpointService.addOne(result.data);
+  const endpoint = await EndpointService.addOne(result.data);
   res.status(HttpStatusCodes.CREATED).json(endpoint);
 }
 
@@ -43,7 +43,7 @@ function create(req: Req, res: Res) {
  *
  * @route PUT /api/endpoints/:id
  */
-function update(req: Req, res: Res) {
+async function update(req: Req, res: Res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Invalid id');
@@ -55,7 +55,7 @@ function update(req: Req, res: Res) {
       formatZodError(result.error),
     );
   }
-  const endpoint = EndpointService.updateOne(id, result.data);
+  const endpoint = await EndpointService.updateOne(id, result.data);
   res.status(HttpStatusCodes.OK).json(endpoint);
 }
 
@@ -64,7 +64,7 @@ function update(req: Req, res: Res) {
  *
  * @route POST /api/endpoints/bulk
  */
-function bulkCreate(req: Req, res: Res) {
+async function bulkCreate(req: Req, res: Res) {
   if (!Array.isArray(req.body)) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Body must be an array');
   }
@@ -80,7 +80,7 @@ function bulkCreate(req: Req, res: Res) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, msgs);
   }
   const data = parsed.map(r => (r.success ? r.data : null)).filter(Boolean) as ReturnType<typeof EndpointSchema.parse>[];
-  const result = EndpointService.upsertMany(data);
+  const result = await EndpointService.upsertMany(data);
   res.status(HttpStatusCodes.OK).json(result);
 }
 
@@ -102,12 +102,12 @@ function reorder(req: Req, res: Res) {
  *
  * @route DELETE /api/endpoints/:id
  */
-function delete_(req: Req, res: Res) {
+async function delete_(req: Req, res: Res) {
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id <= 0) {
     throw new RouteError(HttpStatusCodes.BAD_REQUEST, 'Invalid id');
   }
-  EndpointService.delete(id);
+  await EndpointService.delete(id);
   res.status(HttpStatusCodes.OK).end();
 }
 

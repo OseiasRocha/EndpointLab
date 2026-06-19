@@ -20,34 +20,34 @@ function getAll(): IEndpoint[] {
   return EndpointRepo.getAll();
 }
 
-function addOne(data: EndpointInput): IEndpoint {
+async function addOne(data: EndpointInput): Promise<IEndpoint> {
   const endpoint = EndpointRepo.add(data);
-  WsManager.track(endpoint);
+  await WsManager.track(endpoint);
   return endpoint;
 }
 
-function upsertMany(data: EndpointInput[]): { created: IEndpoint[]; updated: IEndpoint[] } {
+async function upsertMany(data: EndpointInput[]): Promise<{ created: IEndpoint[]; updated: IEndpoint[] }> {
   const before = EndpointRepo.getAll();
   const result = EndpointRepo.bulkUpsert(data);
   for (const updated of result.updated) {
     const old = before.find(e => e.id === updated.id);
-    if (old) WsManager.untrack(old);
-    WsManager.track(updated);
+    if (old) await WsManager.untrack(old);
+    await WsManager.track(updated);
   }
   for (const created of result.created) {
-    WsManager.track(created);
+    await WsManager.track(created);
   }
   return result;
 }
 
-function updateOne(id: number, data: EndpointInput): IEndpoint {
+async function updateOne(id: number, data: EndpointInput): Promise<IEndpoint> {
   const existing = EndpointRepo.getById(id);
   if (!existing) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.NOT_FOUND);
   }
   const endpoint = EndpointRepo.update(id, { ...data, externalId: data.externalId ?? existing.externalId });
-  WsManager.untrack(existing);
-  WsManager.track(endpoint);
+  await WsManager.untrack(existing);
+  await WsManager.track(endpoint);
   return endpoint;
 }
 
@@ -55,13 +55,13 @@ function reorder(orderedIds: number[]): void {
   EndpointRepo.reorder(orderedIds);
 }
 
-function deleteOne(id: number): void {
+async function deleteOne(id: number): Promise<void> {
   const existing = EndpointRepo.getById(id);
   if (!existing) {
     throw new RouteError(HttpStatusCodes.NOT_FOUND, Errors.NOT_FOUND);
   }
   EndpointRepo.delete(id);
-  WsManager.untrack(existing);
+  await WsManager.untrack(existing);
 }
 
 /******************************************************************************

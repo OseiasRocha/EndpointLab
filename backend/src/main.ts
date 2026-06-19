@@ -24,6 +24,6 @@ const httpServer = http.createServer((req, res) => {
 });
 httpServer.listen(EnvVars.Port, () => {
   logger.info('Express server started on HTTP port: ' + EnvVars.Port);
-  WsManager.initialize(EndpointRepo.getAll());
+  void WsManager.initialize(EndpointRepo.getAll()).catch(err => logger.err(err));
 });
 httpServer.on('error', (err: Error) => logger.err(err.message));
