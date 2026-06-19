@@ -38,15 +38,12 @@ COPY --from=builder /app/backend/package.json ./backend/
 COPY --chown=1000:1000 --from=builder /app/data ./data
 
 VOLUME ["/app/data"]
-VOLUME ["/app/certs"]
 
 EXPOSE 8080
 EXPOSE 8443
 
 ENV NODE_ENV=production \
   PORT=8080 \
-  HTTPS_PORT=8443 \
-  CERT_DIR=/app/certs \
   DB_PATH=/app/data/db.sqlite
 
 WORKDIR /app/backend

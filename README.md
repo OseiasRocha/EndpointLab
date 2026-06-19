@@ -22,7 +22,7 @@ Docker Hub image:
 - Import and export endpoint definitions as ZIP archives
 - Persist data in SQLite
 - Run locally as separate frontend and backend processes or as a single Docker container
-- Optionally serve HTTPS when `cert.pem` and `key.pem` are available in `CERT_DIR`
+- Create secure WSS servers with TLS credentials supplied through environment variables
 
 ## Repository Layout
 
@@ -65,7 +65,7 @@ Notes:
 - `responseBody` is an expected response used by the UI for comparison. It is not served by the backend.
 - Exported files keep a stable hidden `externalId` so imports can update the same logical endpoint without clobbering unrelated ones.
 - HTTPS transmissions rely on Node's default TLS trust store. Set `NODE_EXTRA_CA_CERTS` to a PEM file path to trust additional certificate authorities (e.g. a local self-signed CA).
-- For the backend's own HTTPS listener, use `fullchain.pem` when available, or `cert.pem` plus `chain.pem`, so clients receive the full certificate chain.
+- WSS servers read their private key, certificate, and optional certificate chain directly from environment variables.
 
 ## API Summary
 
@@ -225,25 +225,17 @@ docker run -d --name endpointlab \
   oseiasrocha/endpointlab:latest
 ```
 
-### Enable HTTPS
+### Enable WSS
 
-The backend starts an HTTPS listener on `HTTPS_PORT` when `key.pem` and `cert.pem` exist in `CERT_DIR`. Use [mkcert](https://github.com/FiloSottile/mkcert) to generate locally-trusted certificates:
-
-```bash
-mkcert -install
-mkdir -p certs
-mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1
-cp "$(mkcert -CAROOT)/rootCA.pem" certs/rootCA.pem
-```
-
-Then run the container with the cert directory mounted:
+Provide PEM content directly through environment variables when running a WSS server endpoint:
 
 ```bash
 docker run -d --name endpointlab \
   -p 8080:8080 -p 8443:8443 \
   -v endpointlab-data:/app/data \
-  -v ./certs:/app/certs \
-  -e NODE_EXTRA_CA_CERTS=/app/certs/rootCA.pem \
+  -e TLS_PRIVATE_KEY="$TLS_PRIVATE_KEY" \
+  -e TLS_CERTIFICATE="$TLS_CERTIFICATE" \
+  -e TLS_CERTIFICATE_CHAIN="$TLS_CERTIFICATE_CHAIN" \
   oseiasrocha/endpointlab:latest
 ```
 
@@ -254,8 +246,9 @@ docker build -t endpointlab .
 docker run -d --name endpointlab \
   -p 8080:8080 -p 8443:8443 \
   -v endpointlab-data:/app/data \
-  -v ./certs:/app/certs \
-  -e NODE_EXTRA_CA_CERTS=/app/certs/rootCA.pem \
+  -e TLS_PRIVATE_KEY="$TLS_PRIVATE_KEY" \
+  -e TLS_CERTIFICATE="$TLS_CERTIFICATE" \
+  -e TLS_CERTIFICATE_CHAIN="$TLS_CERTIFICATE_CHAIN" \
   endpointlab
 ```
 
@@ -264,14 +257,16 @@ docker run -d --name endpointlab \
 | Variable | Default | Description |
 | --- | --- | --- |
 | `PORT` | `8080` | HTTP listen port |
-| `HTTPS_PORT` | `8443` | HTTPS listen port (HTTPS only starts if cert files are present) |
-| `CERT_DIR` | `/app/certs` | Directory containing `key.pem` and `cert.pem` |
 | `DB_PATH` | `/app/data/db.sqlite` | SQLite database path |
+| `TLS_PRIVATE_KEY` | — | PEM private key content used by WSS servers |
+| `TLS_CERTIFICATE` | — | PEM leaf certificate or full-chain certificate content used by WSS servers |
+| `TLS_CERTIFICATE_CHAIN` | — | Optional PEM intermediate certificate chain appended to `TLS_CERTIFICATE` |
 | `NODE_EXTRA_CA_CERTS` | — | Path to a PEM CA file trusted for outbound HTTPS connections |
 
 Notes:
-- HTTPS is skipped at startup if `key.pem` or `cert.pem` are missing from `CERT_DIR`.
-- If your HTTPS certificate is signed by an intermediate CA, mount `fullchain.pem` (leaf + chain combined) or provide `cert.pem` plus `chain.pem` in `CERT_DIR`.
+- `TLS_PRIVATE_KEY` and `TLS_CERTIFICATE` are required for WSS server endpoints. Values may contain real newlines or escaped `\n` sequences.
+- `TLS_CERTIFICATE_CHAIN` is unnecessary when `TLS_CERTIFICATE` already contains the full chain.
+- WS and WSS endpoints must use different ports.
 - `NODE_EXTRA_CA_CERTS` is needed when the backend makes outbound requests to an HTTPS endpoint signed by a private CA (e.g. the backend's own HTTPS listener).
 - The Docker image bundles the built frontend under `backend/dist/public`.
 - `listener.py` is not included in the Docker image.

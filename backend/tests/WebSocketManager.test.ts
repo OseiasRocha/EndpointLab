@@ -6,12 +6,12 @@ import WebSocket from 'ws';
 import type { IEndpoint } from '../../shared/src';
 import { WebSocketManager } from '../src/services/WebSocketManager';
 
-function endpoint(id: number, port: number, path = '/socket'): IEndpoint {
+function endpoint(id: number, port: number, path = '/socket', protocol: 'WS' | 'WSS' = 'WS'): IEndpoint {
   return {
     id,
     externalId: `endpoint-${id}`,
     name: `Socket ${id}`,
-    protocol: 'WS',
+    protocol,
     host: 'localhost',
     port,
     httpMethod: undefined,
@@ -96,5 +96,19 @@ describe('WebSocketManager server lifecycle', () => {
     const edited = endpoint(1, port, '/edited');
     managers[0].endpoint = edited;
     await expect(manager.track(edited)).resolves.toBeUndefined();
+  });
+
+  it('does not reserve a port when WSS certificate loading fails', async () => {
+    const port = await unusedPort();
+    const manager = new WebSocketManager({});
+    const secureEndpoint = endpoint(1, port, '/secure', 'WSS');
+
+    await expect(manager.track(secureEndpoint)).rejects.toThrow(
+      'Cannot create WSS endpoint: TLS_PRIVATE_KEY and TLS_CERTIFICATE are not configured on the server',
+    );
+
+    const plainEndpoint = endpoint(1, port);
+    managers.push({ manager, endpoint: plainEndpoint });
+    await expect(manager.track(plainEndpoint)).resolves.toBeUndefined();
   });
 });

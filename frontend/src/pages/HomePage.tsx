@@ -45,6 +45,10 @@ const UNGROUPED = '__ungrouped__';
 // App header color — intentionally always dark regardless of mode (brand identity)
 const HEADER_BG = '#173647';
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 interface CardSharedProps {
   onEdit: (ep: SimulatorEndpoint) => void;
   onDelete: (id: number) => void;
@@ -168,7 +172,7 @@ export default function HomePage() {
       const updated = await endpointsApi.update(draggingId, { ...ep, group: newGroup });
       setEndpoints(eps => eps.map(e => e.id === updated.id ? updated : e));
     } catch (err) {
-      setToast({ msg: String(err), severity: 'error' });
+      setToast({ msg: errorMessage(err), severity: 'error' });
     } finally {
       setDraggingId(null);
     }
@@ -215,7 +219,7 @@ export default function HomePage() {
       const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
       setEndpoints(eps => eps.map(e => orderMap.has(e.id!) ? { ...e, order: orderMap.get(e.id!) } : e));
     } catch (err) {
-      setToast({ msg: String(err), severity: 'error' });
+      setToast({ msg: errorMessage(err), severity: 'error' });
     }
   }
 
@@ -279,7 +283,7 @@ export default function HomePage() {
       }
       setDialogOpen(false);
     } catch (err) {
-      setToast({ msg: String(err), severity: 'error' });
+      setToast({ msg: errorMessage(err), severity: 'error' });
     }
   }
 
@@ -295,7 +299,7 @@ export default function HomePage() {
       if (updated.length) parts.push(`${updated.length} updated`);
       setToast({ msg: `Imported: ${parts.join(', ')}`, severity: 'success' });
     } catch (err) {
-      setToast({ msg: String(err), severity: 'error' });
+      setToast({ msg: errorMessage(err), severity: 'error' });
       throw err;
     }
   }
@@ -306,7 +310,7 @@ export default function HomePage() {
       setEndpoints(eps => eps.filter(e => e.id !== id));
       setToast({ msg: 'Endpoint deleted', severity: 'success' });
     } catch (err) {
-      setToast({ msg: String(err), severity: 'error' });
+      setToast({ msg: errorMessage(err), severity: 'error' });
     }
   }
 
@@ -317,7 +321,7 @@ export default function HomePage() {
       setEndpoints(eps => eps.filter(e => e.group !== groupName));
       setToast({ msg: `Group "${groupName}" deleted`, severity: 'success' });
     } catch (err) {
-      setToast({ msg: String(err), severity: 'error' });
+      setToast({ msg: errorMessage(err), severity: 'error' });
     }
   }
 

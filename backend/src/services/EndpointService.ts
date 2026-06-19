@@ -22,7 +22,12 @@ function getAll(): IEndpoint[] {
 
 async function addOne(data: EndpointInput): Promise<IEndpoint> {
   const endpoint = EndpointRepo.add(data);
-  await WsManager.track(endpoint);
+  try {
+    await WsManager.track(endpoint);
+  } catch (err) {
+    EndpointRepo.delete(endpoint.id);
+    throw err;
+  }
   return endpoint;
 }
 

@@ -1,16 +1,26 @@
+/* eslint-disable no-process-env */
 import http, { IncomingMessage } from 'http';
+import https from 'https';
 import { Duplex } from 'stream';
 
 import logger from 'jet-logger';
 import { WebSocket, WebSocketServer } from 'ws';
 
 import type { IEndpoint } from '../../../shared/src';
+import {
+  loadTlsCredentials,
+  TlsConfigurationError,
+  type TlsCredentialValues,
+} from './TlsCredentials';
 
 /******************************************************************************
                               Constants
 ******************************************************************************/
 
 const RECONNECT_DELAY_MS = 3000;
+
+type ServerProtocol = 'WS' | 'WSS';
+type UpgradeServer = http.Server | https.Server;
 
 /******************************************************************************
                               Helpers
@@ -29,9 +39,16 @@ function wsUrl(endpoint: Pick<IEndpoint, 'protocol' | 'host' | 'port' | 'path'>)
 export class WebSocketManager {
   private socketClients = new Map<string, WebSocket>();
   private endpointsByUrl = new Map<string, Set<number>>();
-  private httpServers = new Map<number, http.Server>();
+  private httpServers = new Map<number, UpgradeServer>();
+  private serverProtocolsPerPort = new Map<number, ServerProtocol>();
   private socketServersPerPort = new Map<number, Set<string>>();
   private socketServersPerUrl = new Map<string, WebSocketServer>();
+
+  constructor(private readonly tlsCredentials: TlsCredentialValues = {
+    privateKey: process.env.TLS_PRIVATE_KEY,
+    certificate: process.env.TLS_CERTIFICATE,
+    certificateChain: process.env.TLS_CERTIFICATE_CHAIN,
+  }) {}
 
   async initialize(endpoints: IEndpoint[]): Promise<void> {
     for (const ep of endpoints) await this.track(ep);
@@ -52,7 +69,18 @@ export class WebSocketManager {
       const port = endpoint.port;
       if (!path || !port) return;
 
+      const protocol = endpoint.protocol as ServerProtocol;
+      const activeProtocol = this.serverProtocolsPerPort.get(port);
+      if (activeProtocol && activeProtocol !== protocol) {
+        throw new Error(
+          `Port ${port} already hosts ${activeProtocol} endpoints and cannot also host ${protocol}`,
+        );
+      }
+
       const serverUrl = port + path;
+      const newServer = !this.httpServers.has(port)
+        ? this.createUpgradeServer(protocol)
+        : null;
 
       if (!this.endpointsByUrl.has(serverUrl)) this.endpointsByUrl.set(serverUrl, new Set());
       this.endpointsByUrl.get(serverUrl)!.add(endpoint.id);
@@ -62,8 +90,7 @@ export class WebSocketManager {
       if (!this.socketServersPerPort.has(port)) this.socketServersPerPort.set(port, new Set());
       this.socketServersPerPort.get(port)!.add(serverUrl);
 
-      if (!this.httpServers.has(port)) {
-        const newServer = http.createServer();
+      if (newServer) {
         newServer.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
           const reqPath = port + (request.url ?? '/');
           const wsServer = this.socketServersPerUrl.get(reqPath);
@@ -77,10 +104,12 @@ export class WebSocketManager {
           }
         });
         this.httpServers.set(port, newServer);
+        this.serverProtocolsPerPort.set(port, protocol);
         try {
           await this.listen(newServer, port);
         } catch (err) {
           this.httpServers.delete(port);
+          this.serverProtocolsPerPort.delete(port);
           const serverUrls = this.socketServersPerPort.get(port);
           serverUrls?.delete(serverUrl);
           if (serverUrls?.size === 0) this.socketServersPerPort.delete(port);
@@ -124,6 +153,7 @@ export class WebSocketManager {
           this.socketServersPerPort.delete(endpoint.port);
           const server = this.httpServers.get(endpoint.port);
           this.httpServers.delete(endpoint.port);
+          this.serverProtocolsPerPort.delete(endpoint.port);
           if (server) await this.closeHttpServer(server);
         }
         logger.info(`Deleted webSocket ${url}`);
@@ -173,7 +203,20 @@ export class WebSocketManager {
     });
   }
 
-  private listen(server: http.Server, port: number): Promise<void> {
+  private createUpgradeServer(protocol: ServerProtocol): UpgradeServer {
+    if (protocol === 'WS') return http.createServer();
+
+    try {
+      return https.createServer(loadTlsCredentials(this.tlsCredentials));
+    } catch (err) {
+      if (err instanceof TlsConfigurationError) throw err;
+      throw new TlsConfigurationError(
+        'Cannot create WSS endpoint: the configured TLS credentials are invalid',
+      );
+    }
+  }
+
+  private listen(server: UpgradeServer, port: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const onError = (err: Error) => reject(err);
       server.once('error', onError);
@@ -191,7 +234,7 @@ export class WebSocketManager {
     });
   }
 
-  private closeHttpServer(server: http.Server): Promise<void> {
+  private closeHttpServer(server: UpgradeServer): Promise<void> {
     return new Promise((resolve, reject) => {
       server.closeAllConnections();
       server.close(err => err ? reject(err) : resolve());

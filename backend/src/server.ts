@@ -10,6 +10,7 @@ import Paths from './common/constants/Paths';
 import { RouteError } from './common/utils/route-errors';
 import BaseRouter from './routes/apiRouter';
 import DocsRouter from './routes/DocsRoutes';
+import { TlsConfigurationError } from './services/TlsCredentials';
 
 import EnvVars, { NodeEnvs } from './common/constants/env';
 
@@ -61,6 +62,10 @@ app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
 
   if (err instanceof RouteError) {
     return res.status(err.status).json({ message: err.message });
+  }
+
+  if (err instanceof TlsConfigurationError) {
+    return res.status(503).json({ message: err.message });
   }
 
   return res.status(500).json({ message: 'Internal server error' });

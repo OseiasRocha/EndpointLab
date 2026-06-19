@@ -7,7 +7,7 @@ The backend is an Express 5 API that stores endpoint definitions in SQLite and e
 - Validate payloads with the shared Zod schema
 - Persist endpoint definitions in SQLite through Drizzle and `better-sqlite3`
 - Serve the built frontend in production
-- Optionally expose HTTPS when PEM files are available
+- Create WSS endpoint servers with PEM credentials supplied through environment variables
 - Execute outgoing transmissions with a 5 second timeout
 
 ## Runtime
@@ -53,15 +53,16 @@ The code currently consumes these runtime variables:
 | `NODE_ENV` | Express environment | from `config/.env.*` |
 | `PORT` | HTTP port | `3000` in development |
 | `DB_PATH` | SQLite file path | `src/repos/db.sqlite` relative to compiled backend |
-| `HTTPS_PORT` | Optional HTTPS port | unset unless provided |
-| `CERT_DIR` | Directory containing `key.pem` and `cert.pem` | unset unless provided |
+| `TLS_PRIVATE_KEY` | PEM private key content for WSS servers | unset unless provided |
+| `TLS_CERTIFICATE` | PEM leaf or full-chain certificate content for WSS servers | unset unless provided |
+| `TLS_CERTIFICATE_CHAIN` | Optional PEM intermediate certificate chain for WSS servers | unset unless provided |
 | `NODE_EXTRA_CA_CERTS` | Extra CA bundle used by Node HTTPS clients | unset unless provided |
 
 Notes:
 - The `.env` files also contain `HOST`, but the current backend code does not read it.
-- HTTPS only starts when both `HTTPS_PORT` and `CERT_DIR` are set and the PEM files exist.
-- When serving HTTPS, the backend prefers `fullchain.pem` if present. Otherwise it uses `cert.pem`, and appends `chain.pem` when available.
-- Certificate files are expected to come from a mounted local directory or volume, not from repo-tracked files.
+- WSS requires `TLS_PRIVATE_KEY` and `TLS_CERTIFICATE`; `TLS_CERTIFICATE_CHAIN` is optional.
+- PEM values may contain actual newlines or escaped `\n` sequences.
+- A port may contain multiple WSS paths, but WS and WSS endpoints cannot share one port.
 
 ## API Routes
 
