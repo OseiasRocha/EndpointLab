@@ -98,4 +98,25 @@ describe('EndpointRepo.bulkUpsert', () => {
     expect(result.updated[0]?.protocol).toBe('UDP');
     expect(repo.getAll()).toHaveLength(1);
   });
+
+  it('persists websocketType for websocket endpoints', () => {
+    const created = repo.add({
+      externalId: undefined,
+      name: 'Socket endpoint',
+      protocol: 'WS',
+      host: 'localhost',
+      port: 8080,
+      httpMethod: undefined,
+      path: '/socket',
+      requestBody: undefined,
+      hasResponse: false,
+      responseBody: undefined,
+      description: undefined,
+      group: undefined,
+      websocketType: 'Server',
+    });
+
+    expect(created.websocketType).toBe('Server');
+    expect(repo.getById(created.id)?.websocketType).toBe('Server');
+  });
 });

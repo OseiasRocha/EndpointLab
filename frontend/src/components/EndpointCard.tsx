@@ -226,6 +226,10 @@ export default function EndpointCard({
               <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', fontWeight: 600 }}>Protocol</Typography>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>{endpoint.protocol}</Typography>
             </Box>
+            {endpoint.websocketType != null && (<Box>
+              <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', fontWeight: 600 }}>Mode</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>{endpoint.websocketType}</Typography>
+            </Box>)}
             <Box>
               <Typography variant="caption" sx={{ color: 'text.disabled', textTransform: 'uppercase', fontWeight: 600 }}>Host</Typography>
               <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{endpoint.host}</Typography>

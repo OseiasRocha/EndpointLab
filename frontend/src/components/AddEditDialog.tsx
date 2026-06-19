@@ -15,10 +15,11 @@ import Switch from '@mui/material/Switch';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
-import type { SimulatorEndpoint, Protocol, HttpMethod } from '../types/endpoint';
+import type { SimulatorEndpoint, Protocol, HttpMethod, WebSocketType } from '../types/endpoint';
 
 const PROTOCOLS: Protocol[] = ['HTTP', 'HTTPS', 'TCP', 'UDP', 'WS', 'WSS'];
 const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+const WS_MODES: WebSocketType[] = ['Client', 'Server']
 
 const EMPTY: Omit<SimulatorEndpoint, 'id'> = {
   externalId: undefined,
@@ -34,6 +35,7 @@ const EMPTY: Omit<SimulatorEndpoint, 'id'> = {
   responseBody: '',
   group: undefined,
   delayMs: 0,
+  websocketType: 'Client'
 };
 
 interface Props {
@@ -53,12 +55,20 @@ function usesHttpMethod(protocol: Protocol) {
   return protocol === 'HTTP' || protocol === 'HTTPS';
 }
 
+function usesWebSocket(protocol: Protocol) {
+  return protocol === 'WS' || protocol == 'WSS';
+}
+
 function usesPath(protocol: Protocol) {
   return protocol === 'HTTP' || protocol === 'HTTPS' || protocol === 'WS' || protocol === 'WSS';
 }
 
 function usesJsonBodies(protocol: Protocol) {
   return protocol === 'HTTP' || protocol === 'HTTPS' || protocol === 'WS' || protocol === 'WSS';
+}
+
+function usesWebSocketServer(protocol: Protocol, type: WebSocketType | null | undefined) {
+  return !((protocol === 'WS' || protocol === 'WSS') && (type === 'Server'))
 }
 
 export default function AddEditDialog({ open, initial, groups, onClose, onSave }: Props) {
@@ -90,6 +100,7 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
     const payload = { ...form };
     if (!usesHttpMethod(payload.protocol)) delete payload.httpMethod;
     if (!usesPath(payload.protocol)) delete payload.path;
+    if (!usesWebSocket(payload.protocol)) delete payload.websocketType;
     if (!payload.hasResponse) delete payload.responseBody;
     onSave(payload);
   }
@@ -189,15 +200,28 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
               </FormControl>
             )}
 
-            <TextField
+            {usesWebSocket(form.protocol) && (
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Mode *</InputLabel>
+                <Select
+                  value={form.websocketType ?? 'Client'}
+                  label="Mode *"
+                  onChange={e => set('websocketType', e.target.value as WebSocketType)}
+                >
+                  {WS_MODES.map(m => <MenuItem key={m} value={m}>{m}</MenuItem>)}
+                </Select>
+              </FormControl>
+            )}
+
+            {usesWebSocketServer(form.protocol, form.websocketType) && (<TextField
               label="Host *"
               value={form.host}
               onChange={e => set('host', e.target.value)}
               error={!!errors.host}
               helperText={errors.host}
               size="small"
-              sx={{ flex: 1, minWidth: 160 }}
-            />
+              sx={{ flexGrow: 2, minWidth: 160}}
+            />)}
 
             <TextField
               label="Port *"
@@ -207,7 +231,8 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
               error={!!errors.port}
               helperText={errors.port}
               size="small"
-              sx={{ width: 110 }}
+              fullWidth
+              sx={{ flexGrow: 1, width: 110 }}
               inputProps={{ min: 1, max: 65535 }}
             />
           </Box>
@@ -240,7 +265,7 @@ export default function AddEditDialog({ open, initial, groups, onClose, onSave }
             helperText={errors.requestBody || (jsonBodies ? 'Optional JSON payload to send' : 'Optional plain-text payload to send')}
             size="small"
             fullWidth
-	    multiline
+            multiline
             minRows={5}
             maxRows={20}
             inputProps={{ style: { fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem' } }}

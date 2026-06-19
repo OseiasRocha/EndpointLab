@@ -32,7 +32,8 @@ function ensureSchema(dbFile: Database.Database): void {
       request_body TEXT,
       has_response INTEGER NOT NULL DEFAULT 0,
       response_body TEXT,
-      "group" TEXT
+      "group" TEXT,
+      websocket_type TEXT
     );
   `);
 
@@ -52,6 +53,7 @@ function ensureSchema(dbFile: Database.Database): void {
     group: 'ALTER TABLE endpoints ADD COLUMN "group" TEXT;',
     order: 'ALTER TABLE endpoints ADD COLUMN "order" INTEGER;',
     delay_ms: 'ALTER TABLE endpoints ADD COLUMN delay_ms INTEGER;',
+    websocket_type: 'ALTER TABLE endpoints ADD COLUMN websocket_type TEXT;',
   };
 
   for (const [column, statement] of Object.entries(addColumnStatements)) {

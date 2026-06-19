@@ -3,6 +3,7 @@ export type {
   HttpMethod,
   SimulatorEndpoint,
   TransmitResult,
+  WebSocketType
 } from '@shared';
 
 export {
@@ -10,4 +11,5 @@ export {
   HttpMethodSchema,
   SimulatorEndpointSchema,
   TransmitResultSchema,
+  WebSocketTypeSchema
 } from '@shared';

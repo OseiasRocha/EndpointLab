@@ -2,7 +2,7 @@ import dgram from 'dgram';
 import http from 'http';
 import https from 'https';
 import net from 'net';
-import type WebSocket from 'ws';
+import WebSocket from 'ws';
 
 import type { IEndpoint, TransmitResult } from '../../../shared/src';
 import WsManager from './WebSocketManager';
@@ -172,7 +172,7 @@ function transmitUdp(endpoint: IEndpoint): Promise<TransmitResult> {
 function transmitWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {
   const start = Date.now();
   return new Promise((resolve) => {
-    const ws = WsManager.getSocket(endpoint);
+    const ws = WsManager.getClientSocket(endpoint);
     if (!ws) {
       return resolve({ success: false, error: 'WebSocket not connected', latencyMs: Date.now() - start });
     }
@@ -205,6 +205,31 @@ function transmitWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {
   });
 }
 
+function serveWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {
+  const start = Date.now();
+  return new Promise((resolve) => {
+    const ws = WsManager.getServerSocket(endpoint.path!);
+    ws?.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        if (endpoint.requestBody) client.send(endpoint.requestBody);
+      }
+      return resolve({ success: true, latencyMs: Date.now() - start });
+    })
+  })
+}
+
+function handleWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {
+  switch (endpoint.websocketType) {
+    case "Client":
+      return transmitWebSocket(endpoint);
+    case "Server":
+      return serveWebSocket(endpoint);
+  }
+  return new Promise(() => {
+    return { success: false, error: 'Invalid WS type' };
+  });
+}
+
 function transmit(endpoint: IEndpoint): Promise<TransmitResult> {
   switch (endpoint.protocol) {
     case 'HTTP': return transmitWeb(endpoint, http);
@@ -212,7 +237,7 @@ function transmit(endpoint: IEndpoint): Promise<TransmitResult> {
     case 'TCP': return transmitTcp(endpoint);
     case 'UDP': return transmitUdp(endpoint);
     case 'WS':
-    case 'WSS': return transmitWebSocket(endpoint);
+    case 'WSS': return handleWebSocket(endpoint);
     default: throw new Error('Unsupported protocol');
   }
 }

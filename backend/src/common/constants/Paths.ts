@@ -1,7 +1,7 @@
 import jetPaths from 'jet-paths';
 
 const Paths = {
-  _: '/api',
+  _: '/endpointlab/api',
   Endpoints: {
     _: '/endpoints',
     GetAll: '/',

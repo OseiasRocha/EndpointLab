@@ -108,6 +108,7 @@ function toRow(data: EndpointInput, fallbackExternalId?: string) {
     group: data.group ?? null,
     order: data.order ?? null,
     delayMs: data.delayMs ?? null,
+    websocketType: data.websocketType ?? null
   };
 }
 

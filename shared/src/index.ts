@@ -7,6 +7,7 @@ export { getEndpointFallbackKey, getEndpointImportKey } from './endpointIdentity
 
 export const ProtocolSchema = z.enum(['HTTP', 'HTTPS', 'TCP', 'UDP', 'WS', 'WSS']);
 export const HttpMethodSchema = z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH']);
+export const WebSocketTypeSchema = z.enum(['Server', 'Client']);
 
 /******************************************************************************
                              Endpoint Schemas
@@ -31,6 +32,7 @@ export const EndpointSchema = z
     group: nullToUndefined(z.string()),
     order: z.number().int().optional(),
     delayMs: z.number().int().nonnegative().optional(),
+    websocketType: nullToUndefined(WebSocketTypeSchema).optional(),
   })
   .refine(
     (data) => {
@@ -45,6 +47,18 @@ export const EndpointSchema = z
     {
       message: 'httpMethod and path are required for HTTP/HTTPS; path is required for WS/WSS',
       path: ['httpMethod'],
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.protocol === 'WS' || data.protocol === 'WSS') {
+        return !!data.websocketType;
+      }
+      return true;
+    },
+    {
+      message: 'websocketType is required for WS/WSS',
+      path: ['websocketType'],
     },
   );
 
@@ -86,3 +100,5 @@ export type IEndpoint = z.infer<typeof EndpointWithIdSchema>;
 export type SimulatorEndpoint = z.infer<typeof SimulatorEndpointSchema>;
 
 export type TransmitResult = z.infer<typeof TransmitResultSchema>;
+
+export type WebSocketType = z.infer<typeof WebSocketTypeSchema>;

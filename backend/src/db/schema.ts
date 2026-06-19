@@ -16,4 +16,5 @@ export const endpoints = sqliteTable('endpoints', {
   group: text('group'),
   order: integer('order'),
   delayMs: integer('delay_ms'),
+  websocketType: text('websocket_type'),
 });

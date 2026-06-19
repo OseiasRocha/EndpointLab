@@ -138,8 +138,9 @@ export default function HomePage() {
     try {
       const data = await endpointsApi.getAll();
       setEndpoints(data);
-    } catch {
+    } catch (err) {
       setToast({ msg: 'Failed to load endpoints', severity: 'error' });
+      console.log(err);
     } finally {
       setLoading(false);
     }

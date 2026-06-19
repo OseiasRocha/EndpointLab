@@ -5,7 +5,7 @@
     "build": "npm run lint && npm run build:docker",
     "build:docker": "shx rm -rf dist && tsc --project tsconfig.prod.json && shx mkdir -p dist/public dist/backend/src/repos",
     "clean-install": "rm -rf ./node_modules && rm -r package-lock.json && npm i",
-    "dev:basic": "NODE_OPTIONS=--use-system-ca DOTENV_CONFIG_PATH=./config/.env.development ts-node ./src/main",
+    "dev:basic": "NODE_OPTIONS=--use-system-ca DOTENV_CONFIG_PATH=./config/.env.development tsx --inspect=9229 -r dotenv/config ./src/main",
     "dev:watch": "nodemon --exec \"npm run dev:basic\" --watch ./src --ext .ts",
     "dev": "npm run dev:watch",
     "lint": "eslint .",
