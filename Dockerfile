@@ -42,6 +42,7 @@ VOLUME ["/app/data"]
 EXPOSE 8080
 
 ENV NODE_ENV=production \
+  NODE_OPTIONS=--use-system-ca \
   PORT=8080 \
   DB_PATH=/app/data/db.sqlite
 

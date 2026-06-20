@@ -52,6 +52,7 @@ ENABLE_TCP   = _env_bool("LISTENER_ENABLE_TCP",   True)
 ENABLE_UDP   = _env_bool("LISTENER_ENABLE_UDP",   False)
 ENABLE_WS    = _env_bool("LISTENER_ENABLE_WS",    False)
 ENABLE_WSS   = _env_bool("LISTENER_ENABLE_WSS",   False)
+ENABLE_WS_SERVER_TEST = _env_bool("LISTENER_ENABLE_WS_SERVER_TEST", False)
 ENABLE_WSS_SERVER_TEST = _env_bool("LISTENER_ENABLE_WSS_SERVER_TEST", False)
 
 HTTP_PORT  = _env_int("LISTENER_HTTP_PORT",  18080)
@@ -61,7 +62,14 @@ UDP_PORT   = _env_int("LISTENER_UDP_PORT",   18082)
 WS_PORT    = _env_int("LISTENER_WS_PORT",    18083)
 WSS_PORT   = _env_int("LISTENER_WSS_PORT",   18084)
 
-# WSS client used to test an EndpointLab endpoint configured in Server mode.
+# WS/WSS clients used to test EndpointLab endpoints configured in Server mode.
+WS_SERVER_URL = os.getenv("LISTENER_WS_SERVER_URL", "ws://localhost:18083/socket")
+WS_SERVER_MESSAGE = os.getenv(
+    "LISTENER_WS_SERVER_MESSAGE",
+    '{"source":"listener.py","event":"connected"}',
+)
+WS_SERVER_RECONNECT_SECONDS = _env_int("LISTENER_WS_SERVER_RECONNECT_SECONDS", 3)
+
 WSS_SERVER_URL = os.getenv("LISTENER_WSS_SERVER_URL", "wss://localhost:8443/socket")
 WSS_SERVER_CA = os.getenv("LISTENER_WSS_SERVER_CA", "docker/certs/wss.cert.pem")
 WSS_SERVER_INSECURE = _env_bool("LISTENER_WSS_SERVER_INSECURE", False)
@@ -72,8 +80,8 @@ WSS_SERVER_MESSAGE = os.getenv(
 WSS_SERVER_RECONNECT_SECONDS = _env_int("LISTENER_WSS_SERVER_RECONNECT_SECONDS", 3)
 
 # TLS certificate files for the HTTPS listener
-HTTPS_CERT = os.getenv("LISTENER_HTTPS_CERT", "certs/cert.pem")
-HTTPS_KEY  = os.getenv("LISTENER_HTTPS_KEY",  "certs/key.pem")
+HTTPS_CERT = os.getenv("LISTENER_HTTPS_CERT", "docker/certs/wss.cert.pem")
+HTTPS_KEY  = os.getenv("LISTENER_HTTPS_KEY",  "docker/certs/wss.key.pem")
 
 # HTTP/HTTPS response sent back to every request
 HTTP_RESPONSE_STATUS = 200
@@ -227,38 +235,60 @@ def _wss_server_test_context() -> ssl.SSLContext:
     return ctx
 
 
+async def _server_test_client(
+    protocol: str,
+    url: str,
+    initial_message: str,
+    reconnect_seconds: int,
+    ssl_context_factory=None,
+) -> None:
+    while True:
+        retry_reason = "Disconnected"
+        try:
+            ssl_context = ssl_context_factory() if ssl_context_factory else None
+            async with ws_client.connect(url, ssl=ssl_context) as websocket:
+                print(f"  [{protocol}→]  Connected to EndpointLab server: {url}")
+                if initial_message:
+                    await websocket.send(initial_message)
+                    log(f"{protocol}→", url, initial_message)
+
+                async for message in websocket:
+                    data = message if isinstance(message, str) else message.decode(errors="replace")
+                    log(f"{protocol}←", url, data)
+        except Exception as exc:
+            retry_reason = f"Connection failed: {exc}"
+
+        print(f"  [{protocol}→]  {retry_reason}; retrying in {reconnect_seconds}s")
+        await asyncio.sleep(reconnect_seconds)
+
+
+def _run_ws_server_test() -> None:
+    """Connect as a client to test an EndpointLab WS endpoint in Server mode."""
+    if not _HAS_WEBSOCKETS:
+        print("  [WS→]   ERROR: 'websockets' package not installed — run: pip install websockets")
+        return
+
+    asyncio.run(_server_test_client(
+        "WS",
+        WS_SERVER_URL,
+        WS_SERVER_MESSAGE,
+        WS_SERVER_RECONNECT_SECONDS,
+    ))
+
+
 def _run_wss_server_test() -> None:
     """Connect as a client to test an EndpointLab WSS endpoint in Server mode."""
     if not _HAS_WEBSOCKETS:
         print("  [WSS→]  ERROR: 'websockets' package not installed — run: pip install websockets")
         return
 
-    async def _connect() -> None:
-        while True:
-            retry_reason = "Disconnected"
-            try:
-                async with ws_client.connect(
-                    WSS_SERVER_URL,
-                    ssl=_wss_server_test_context(),
-                ) as websocket:
-                    print(f"  [WSS→]  Connected to EndpointLab server: {WSS_SERVER_URL}")
-                    if WSS_SERVER_MESSAGE:
-                        await websocket.send(WSS_SERVER_MESSAGE)
-                        log("WSS→", WSS_SERVER_URL, WSS_SERVER_MESSAGE)
-
-                    async for message in websocket:
-                        data = message if isinstance(message, str) else message.decode(errors="replace")
-                        log("WSS←", WSS_SERVER_URL, data)
-            except Exception as exc:
-                retry_reason = f"Connection failed: {exc}"
-
-            print(
-                f"  [WSS→]  {retry_reason}; "
-                f"retrying in {WSS_SERVER_RECONNECT_SECONDS}s"
-            )
-            await asyncio.sleep(WSS_SERVER_RECONNECT_SECONDS)
-
-    asyncio.run(_connect())
+    asyncio.run(_server_test_client(
+        "WSS",
+        WSS_SERVER_URL,
+        WSS_SERVER_MESSAGE,
+        WSS_SERVER_RECONNECT_SECONDS,
+        _wss_server_test_context,
+    ))
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -271,6 +301,7 @@ if __name__ == "__main__":
         (ENABLE_UDP,   _run_udp),
         (ENABLE_WS,    _run_ws),
         (ENABLE_WSS,   _run_wss),
+        (ENABLE_WS_SERVER_TEST, _run_ws_server_test),
         (ENABLE_WSS_SERVER_TEST, _run_wss_server_test),
     ]
 
@@ -285,7 +316,7 @@ if __name__ == "__main__":
     if not threads:
         print(
             "  (nothing enabled — set LISTENER_ENABLE_HTTP/HTTPS/TCP/UDP/WS/WSS "
-            "or LISTENER_ENABLE_WSS_SERVER_TEST to true)"
+            "or LISTENER_ENABLE_WS_SERVER_TEST/LISTENER_ENABLE_WSS_SERVER_TEST to true)"
         )
     else:
         print("\nPress Ctrl+C to stop.")
