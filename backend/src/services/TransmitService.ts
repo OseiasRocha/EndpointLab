@@ -57,7 +57,7 @@ function transmitWeb(
             port: url.port ? parseInt(url.port) : (url.protocol === 'https:' ? 443 : 80),
             path: url.pathname + url.search,
           };
-          transmitWeb(nextEndpoint, nextClient, redirectsLeft - 1)
+          void transmitWeb(nextEndpoint, nextClient, redirectsLeft - 1)
             .then(result => resolve({ ...result, latencyMs: Date.now() - start }));
           return;
         }
@@ -207,15 +207,15 @@ function transmitWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {
 
 function serveWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {
   const start = Date.now();
-  return new Promise((resolve) => {
-    const ws = WsManager.getServerSocket(endpoint.path!);
-    ws?.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        if (endpoint.requestBody) client.send(endpoint.requestBody);
-      }
-      return resolve({ success: true, latencyMs: Date.now() - start });
-    })
-  })
+  const recipients = WsManager.broadcast(endpoint);
+  if (recipients === 0) {
+    return Promise.resolve({
+      success: false,
+      error: 'No WebSocket clients connected',
+      latencyMs: Date.now() - start,
+    });
+  }
+  return Promise.resolve({ success: true, latencyMs: Date.now() - start });
 }
 
 function handleWebSocket(endpoint: IEndpoint): Promise<TransmitResult> {

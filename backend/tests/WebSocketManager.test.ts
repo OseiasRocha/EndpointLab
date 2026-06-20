@@ -54,6 +54,14 @@ function closed(ws: WebSocket): Promise<void> {
   return new Promise(resolve => ws.once('close', () => resolve()));
 }
 
+function nextMessage(ws: WebSocket): Promise<string> {
+  return new Promise(resolve => ws.once('message', data => {
+    if (Array.isArray(data)) return resolve(Buffer.concat(data).toString());
+    if (data instanceof ArrayBuffer) return resolve(Buffer.from(data).toString());
+    return resolve(data.toString());
+  }));
+}
+
 describe('WebSocketManager server lifecycle', () => {
   const managers: Array<{ manager: WebSocketManager; endpoint: IEndpoint }> = [];
 
@@ -70,6 +78,11 @@ describe('WebSocketManager server lifecycle', () => {
     await manager.track(original);
     const client = await connect(`ws://127.0.0.1:${port}${original.path}`);
     const clientClosed = closed(client);
+    const message = nextMessage(client);
+
+    const broadcastEndpoint = { ...original, requestBody: 'server broadcast' };
+    expect(manager.broadcast(broadcastEndpoint)).toBe(1);
+    await expect(message).resolves.toBe(broadcastEndpoint.requestBody);
 
     await manager.untrack(original);
     await clientClosed;

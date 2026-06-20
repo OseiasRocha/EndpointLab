@@ -168,8 +168,21 @@ export class WebSocketManager {
     return ws?.readyState === WebSocket.OPEN ? ws : null;
   }
 
-  getServerSocket(path: string): WebSocketServer | null {
-    return this.socketServersPerUrl.get(path) ?? null;
+  getServerSocket(endpoint: IEndpoint): WebSocketServer | null {
+    return this.socketServersPerUrl.get(endpoint.port + (endpoint.path ?? '/')) ?? null;
+  }
+
+  broadcast(endpoint: IEndpoint): number {
+    const server = this.getServerSocket(endpoint);
+    if (!server) return 0;
+
+    let recipients = 0;
+    for (const client of server.clients) {
+      if (client.readyState !== WebSocket.OPEN) continue;
+      if (endpoint.requestBody) client.send(endpoint.requestBody);
+      recipients += 1;
+    }
+    return recipients;
   }
 
   private connect(url: string): void {

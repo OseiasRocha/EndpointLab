@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 try:
     import websockets
+    import websockets.asyncio.client as ws_client
     import websockets.asyncio.server as ws_server
     _HAS_WEBSOCKETS = True
 except ImportError:
@@ -51,6 +52,7 @@ ENABLE_TCP   = _env_bool("LISTENER_ENABLE_TCP",   True)
 ENABLE_UDP   = _env_bool("LISTENER_ENABLE_UDP",   False)
 ENABLE_WS    = _env_bool("LISTENER_ENABLE_WS",    False)
 ENABLE_WSS   = _env_bool("LISTENER_ENABLE_WSS",   False)
+ENABLE_WSS_SERVER_TEST = _env_bool("LISTENER_ENABLE_WSS_SERVER_TEST", False)
 
 HTTP_PORT  = _env_int("LISTENER_HTTP_PORT",  18080)
 HTTPS_PORT = _env_int("LISTENER_HTTPS_PORT", 18443)
@@ -58,6 +60,16 @@ TCP_PORT   = _env_int("LISTENER_TCP_PORT",   18081)
 UDP_PORT   = _env_int("LISTENER_UDP_PORT",   18082)
 WS_PORT    = _env_int("LISTENER_WS_PORT",    18083)
 WSS_PORT   = _env_int("LISTENER_WSS_PORT",   18084)
+
+# WSS client used to test an EndpointLab endpoint configured in Server mode.
+WSS_SERVER_URL = os.getenv("LISTENER_WSS_SERVER_URL", "wss://localhost:8443/socket")
+WSS_SERVER_CA = os.getenv("LISTENER_WSS_SERVER_CA", "docker/certs/wss.cert.pem")
+WSS_SERVER_INSECURE = _env_bool("LISTENER_WSS_SERVER_INSECURE", False)
+WSS_SERVER_MESSAGE = os.getenv(
+    "LISTENER_WSS_SERVER_MESSAGE",
+    '{"source":"listener.py","event":"connected"}',
+)
+WSS_SERVER_RECONNECT_SECONDS = _env_int("LISTENER_WSS_SERVER_RECONNECT_SECONDS", 3)
 
 # TLS certificate files for the HTTPS listener
 HTTPS_CERT = os.getenv("LISTENER_HTTPS_CERT", "certs/cert.pem")
@@ -203,6 +215,52 @@ def _run_wss() -> None:
     asyncio.run(_serve())
 
 
+def _wss_server_test_context() -> ssl.SSLContext:
+    if WSS_SERVER_INSECURE:
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+
+    ctx = ssl.create_default_context()
+    ctx.load_verify_locations(cafile=WSS_SERVER_CA)
+    return ctx
+
+
+def _run_wss_server_test() -> None:
+    """Connect as a client to test an EndpointLab WSS endpoint in Server mode."""
+    if not _HAS_WEBSOCKETS:
+        print("  [WSS→]  ERROR: 'websockets' package not installed — run: pip install websockets")
+        return
+
+    async def _connect() -> None:
+        while True:
+            retry_reason = "Disconnected"
+            try:
+                async with ws_client.connect(
+                    WSS_SERVER_URL,
+                    ssl=_wss_server_test_context(),
+                ) as websocket:
+                    print(f"  [WSS→]  Connected to EndpointLab server: {WSS_SERVER_URL}")
+                    if WSS_SERVER_MESSAGE:
+                        await websocket.send(WSS_SERVER_MESSAGE)
+                        log("WSS→", WSS_SERVER_URL, WSS_SERVER_MESSAGE)
+
+                    async for message in websocket:
+                        data = message if isinstance(message, str) else message.decode(errors="replace")
+                        log("WSS←", WSS_SERVER_URL, data)
+            except Exception as exc:
+                retry_reason = f"Connection failed: {exc}"
+
+            print(
+                f"  [WSS→]  {retry_reason}; "
+                f"retrying in {WSS_SERVER_RECONNECT_SECONDS}s"
+            )
+            await asyncio.sleep(WSS_SERVER_RECONNECT_SECONDS)
+
+    asyncio.run(_connect())
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -213,6 +271,7 @@ if __name__ == "__main__":
         (ENABLE_UDP,   _run_udp),
         (ENABLE_WS,    _run_ws),
         (ENABLE_WSS,   _run_wss),
+        (ENABLE_WSS_SERVER_TEST, _run_wss_server_test),
     ]
 
     print("Listening on:")
@@ -224,7 +283,10 @@ if __name__ == "__main__":
             threads.append(t)
 
     if not threads:
-        print("  (nothing enabled — set LISTENER_ENABLE_HTTP/HTTPS/TCP/UDP/WS/WSS to true)")
+        print(
+            "  (nothing enabled — set LISTENER_ENABLE_HTTP/HTTPS/TCP/UDP/WS/WSS "
+            "or LISTENER_ENABLE_WSS_SERVER_TEST to true)"
+        )
     else:
         print("\nPress Ctrl+C to stop.")
         try:
