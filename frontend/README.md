@@ -1,16 +1,34 @@
 # Frontend
 
-The frontend is a React 19 + Vite app for managing endpoint definitions and executing transmissions through the backend API.
+The frontend is a React 19 and Vite 8 application for managing endpoint
+definitions and executing them through the backend API.
 
-## Responsibilities
+## Stack
 
-- List saved endpoints from the backend
-- Create, edit, duplicate, and delete endpoint definitions
-- Group endpoints and move them between groups with drag and drop
-- Filter by protocol and free-text search
-- Import and export endpoint ZIP archives
-- Execute saved endpoints and show success, latency, errors, and received payloads
-- Diff received JSON against the saved expected JSON when possible
+- React 19
+- React Router
+- Material UI and Emotion
+- Vite with the React compiler
+- Zod schemas imported from `shared/`
+- JSZip for import/export
+
+## Base Path
+
+Vite builds the application with:
+
+```text
+/endpointlab/
+```
+
+`BrowserRouter` derives its basename from `import.meta.env.BASE_URL`, and API URLs
+are built from the same value. The frontend therefore calls:
+
+```text
+/endpointlab/api/endpoints
+```
+
+In development, Vite proxies `/endpointlab/api` to `http://localhost:3000`
+without stripping the prefix.
 
 ## Development
 
@@ -20,92 +38,126 @@ Install dependencies from the repository root:
 npm ci
 ```
 
-Start the frontend:
+Start Vite:
 
 ```bash
-npm run dev
+npm run dev -w frontend
 ```
 
-By default Vite serves the app on `http://localhost:5173`.
+Open `http://localhost:5173/endpointlab/`. Run the backend separately on port
+`3000`.
 
-## Backend Integration
+## API Client
 
-In development, Vite proxies API calls to:
+`src/api/endpoints.ts` validates successful JSON responses with shared Zod
+schemas and surfaces backend error messages.
 
-```text
-http://localhost:3000
-```
+| Method | Endpoint path | Use |
+| --- | --- | --- |
+| `GET` | `/endpointlab/api/endpoints` | Load all endpoints |
+| `POST` | `/endpointlab/api/endpoints` | Create |
+| `PUT` | `/endpointlab/api/endpoints/:id` | Update |
+| `DELETE` | `/endpointlab/api/endpoints/:id` | Delete |
+| `POST` | `/endpointlab/api/endpoints/:id/send` | Execute |
+| `POST` | `/endpointlab/api/endpoints/reorder` | Save order |
+| `POST` | `/endpointlab/api/endpoints/bulk` | Import selected rows |
 
-The frontend talks to the backend through:
+## Endpoint Editor
 
-```text
-/api/endpoints
-```
+The add/edit dialog supports all shared protocols:
 
-Implemented client calls:
-- `GET /api/endpoints`
-- `POST /api/endpoints`
-- `PUT /api/endpoints/:id`
-- `DELETE /api/endpoints/:id`
-- `POST /api/endpoints/:id/send`
-- `POST /api/endpoints/bulk`
+- HTTP, HTTPS
+- TCP, UDP
+- WS, WSS in Client or Server mode
 
-## Endpoint Editing Rules
+UI validation:
 
-The add/edit dialog enforces a few UI-side rules before submission:
+- name and host must be non-empty
+- port must be from `1` through `65535`
+- HTTP, HTTPS, WS, and WSS require a path
+- HTTP, HTTPS, WS, and WSS bodies must contain valid JSON when non-empty
+- TCP and UDP bodies may be plain text
+- fields irrelevant to the selected protocol are removed before submission
+- `responseBody` is removed when `hasResponse` is disabled
 
-- `name`, `host`, and `port` are required
-- HTTP and HTTPS endpoints must include a path
-- HTTP and HTTPS request and expected-response bodies must be valid JSON when present
-- TCP and UDP request and expected-response bodies can be plain text
-- Non-web endpoints do not send `httpMethod` or `path`
-- When `hasResponse` is disabled, `responseBody` is omitted from the payload
+The host input and response-wait switch are hidden for WS/WSS Server mode because
+the backend binds locally and broadcasts instead of making an outbound request.
+The shared schema still retains a host value on every endpoint.
+
+## Organization And Group Playback
+
+- endpoints may be assigned to typed or existing group names
+- named groups and an Ungrouped section can be collapsed
+- cards can move between groups and be reordered with drag and drop
+- group playback executes endpoints sequentially by stored `order`
+- each endpoint's `delayMs` is applied before it runs during group playback
+- per-card and group execution results share the same result UI
+- entire groups can be deleted
+
+Search checks name, host, port, path, description, and group. Protocol filters
+cover HTTP, HTTPS, TCP, UDP, WS, and WSS.
+
+## Results And Expected Responses
+
+Endpoint cards display:
+
+- success/failure state
+- latency
+- HTTP status code when supplied by the backend
+- connection or timeout errors
+- received response content
+- the stored expected response
+
+When an expected and received body are available, `diffJson` first attempts JSON
+comparison. If either side is not JSON, exact text equality is used.
+
+Expected JSON supports:
+
+- `"*"` to match any value at that path
+- `"$regex:PATTERN"` to match the received value with a JavaScript regular expression
+
+The diff display annotates only affected branches and separately marks wildcard
+matches.
 
 ## Import And Export
 
-Export:
-- Generates `endpoints-export.zip`
-- Writes one JSON file per selected endpoint
-- Removes `id` before exporting but keeps the stable hidden `externalId`
-- Builds filenames from endpoint name, optional HTTP/HTTPS method, and id/index
+### Export
 
-Import:
-- Accepts ZIP files containing `.json` endpoint definitions
-- Validates each file with the shared schema
-- Shows invalid entries in the preview
-- Marks matching `externalId` rows as updates
-- Falls back to a stricter legacy identity for older files that do not contain `externalId`
-- Sends selected records to the backend bulk upsert endpoint
+- opens a selectable endpoint list
+- creates `endpoints-export.zip`
+- writes one formatted JSON file per selected endpoint
+- removes the database `id`
+- retains `externalId` for stable future updates
+- builds safe filenames from name, optional HTTP method, and ID/index
 
-## Execute Flow
+### Import
 
-Clicking **Execute** on a card:
+- accepts a ZIP archive
+- scans every non-directory `.json` entry
+- parses JSON and validates it with the shared endpoint schema
+- displays invalid rows but selects only valid rows
+- previews whether a row will update or create
+- matches `externalId` first and uses the shared fallback identity for legacy files
+- sends selected records to the bulk endpoint
 
-1. Calls `POST /api/endpoints/:id/send`
-2. Shows success or failure state with the HTTP status code when available
-3. Shows connection errors inline (e.g. `ECONNREFUSED`, `EPROTO`, `Request timed out`)
-4. Shows latency in milliseconds
-5. Displays any returned payload
-6. When both expected and received bodies are valid JSON, highlights mismatched fields inline
+## Application State
 
-## UI Notes
+- color mode defaults to dark
+- the selected mode is stored in `localStorage` as `colorMode`
+- endpoints and transmission results are kept in page state
+- API failures appear in Material UI snackbars or endpoint result panels
+- successful create/update/delete/import actions update local state without a full reload
 
-- Color mode defaults to dark and is stored in `localStorage` under `colorMode`
-- Group names come from existing endpoints and can also be typed manually
-- The endpoint list is grouped by named folders plus an `Ungrouped` section
-- Protocol badges show HTTP methods for HTTP/HTTPS rows and protocol names for TCP/UDP rows
+## Scripts
 
-## Build And Lint
+Run from `frontend/`, or append `-w frontend` at the repository root.
 
-Useful scripts:
-
-| Script | What it does |
+| Script | Purpose |
 | --- | --- |
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Type-check and create a production build |
+| `npm run dev` | Start Vite development server |
+| `npm run build` | Type-check and produce `dist/` |
 | `npm run lint` | Run ESLint |
 | `npm run preview` | Preview the production build |
 
-Verified in this repo:
-- `npm run build`
-- `npm run lint`
+The Docker build copies `frontend/dist/` into `backend/dist/public/`, where
+Express serves it under `/endpointlab/`.

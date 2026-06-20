@@ -1,159 +1,213 @@
 # Backend
 
-The backend is an Express 5 API that stores endpoint definitions in SQLite and executes outbound HTTP, HTTPS, TCP, and UDP transmissions on demand.
+The backend is an Express 5 service that validates and persists endpoint
+definitions, executes protocol transmissions, manages WS/WSS connections and
+listeners, and serves the built frontend in production.
 
-## Responsibilities
+## Stack
 
-- Validate payloads with the shared Zod schema
-- Persist endpoint definitions in SQLite through Drizzle and `better-sqlite3`
-- Serve the built frontend in production
-- Create WSS endpoint servers with PEM credentials supplied through environment variables
-- Execute outgoing transmissions with a 5 second timeout
+- TypeScript
+- Express 5
+- SQLite through `better-sqlite3` and Drizzle ORM
+- Zod schemas re-exported from `shared/`
+- `ws` for WebSocket clients and servers
+- Vitest and ESLint
 
-## Runtime
+## Runtime Scripts
 
-Default development entry point:
+Run these from `backend/`, or append `-w backend` when running from the repository
+root.
 
-```bash
-npm run dev:basic
+| Script | Purpose |
+| --- | --- |
+| `npm run dev:basic` | Start `src/main.ts` with development environment settings |
+| `npm run dev:watch` | Restart `dev:basic` when backend TypeScript changes |
+| `npm run dev` | Alias for `dev:watch` |
+| `npm run test` | Run Vitest once |
+| `npm run type-check` | Run TypeScript without emitting files |
+| `npm run lint` | Run ESLint |
+| `npm run build:docker` | Compile production JavaScript into `dist/` |
+| `npm run build` | Lint, then run `build:docker` |
+| `npm run start` | Run the compiled production entry point |
+
+`dev:basic` and `start` set `NODE_OPTIONS=--use-system-ca` and load
+`config/.env.development` or `config/.env.production` through `dotenv`.
+
+## Environment
+
+| Variable | Required | Default/behavior |
+| --- | --- | --- |
+| `NODE_ENV` | yes | `development`, `test`, or `production`; provided by checked-in env files and Docker |
+| `PORT` | yes | `3000` in development, `4000` in tests, `8080` in Docker |
+| `DB_PATH` | no | Source/compiled `repos/db.sqlite` beside the backend code |
+| `TLS_PRIVATE_KEY` | WSS Server mode | PEM private-key content |
+| `TLS_CERTIFICATE` | WSS Server mode | PEM certificate or full-chain content |
+| `TLS_CERTIFICATE_CHAIN` | no | PEM intermediates appended to `TLS_CERTIFICATE` |
+| `NODE_OPTIONS` | no | Launch scripts and Docker use `--use-system-ca` |
+| `NODE_EXTRA_CA_CERTS` | no | Path to an additional PEM CA bundle for outbound HTTPS/WSS |
+
+TLS environment values may contain literal newlines or escaped `\n` sequences.
+Missing or invalid WSS Server credentials produce a `503` API response. A failed
+single-endpoint create is removed from the database before that error is returned.
+
+The checked-in env files also define `HOST`, but the current server does not read
+it. The main API listens through Node's default host binding.
+
+## Paths And Production Serving
+
+The API base is:
+
+```text
+/endpointlab/api
 ```
 
-Useful scripts:
+In production, Express also:
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev:basic` | Starts the API with `config/.env.development` |
-| `npm run dev:watch` | Runs `dev:basic` through `nodemon` |
-| `npm run dev` | Alias for `dev:watch` |
-| `npm run build` | Lints and builds the backend |
-| `npm run build:docker` | Builds the backend artifacts used by the Docker image |
-| `npm run start` | Starts the compiled production build |
-| `npm run type-check` | Runs TypeScript in no-emit mode |
-| `npm run lint` | Runs ESLint |
-| `npm run test` | Runs Vitest |
+- enables Helmet
+- redirects `/` to `/endpointlab/`
+- serves built frontend files at `/endpointlab/`
+- falls back to `index.html` for routes under `/endpointlab/*`
 
-Verified in this repo:
-- `npm run build`
-- `npm run build:docker`
-- `npm run start`
-- `npm run test`
-
-Runtime CA behavior:
-- `npm run dev:basic`, `npm run dev`, and `npm run start` launch Node with `--use-system-ca`
-- This lets the backend process trust locally installed root CAs in addition to Node's bundled roots
-- This affects outbound HTTPS calls and Node-based clients, not the certificate chain served by the backend's own HTTPS listener
-- In Docker, if the backend needs to call an HTTPS endpoint signed by a local CA, mount that CA file into `/app/certs` and pass `NODE_EXTRA_CA_CERTS=/app/certs/<your-ca>.pem`
-
-## Environment Variables
-
-The code currently consumes these runtime variables:
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `NODE_ENV` | Express environment | from `config/.env.*` |
-| `PORT` | HTTP port | `3000` in development |
-| `DB_PATH` | SQLite file path | `src/repos/db.sqlite` relative to compiled backend |
-| `TLS_PRIVATE_KEY` | PEM private key content for WSS servers | unset unless provided |
-| `TLS_CERTIFICATE` | PEM leaf or full-chain certificate content for WSS servers | unset unless provided |
-| `TLS_CERTIFICATE_CHAIN` | Optional PEM intermediate certificate chain for WSS servers | unset unless provided |
-| `NODE_EXTRA_CA_CERTS` | Extra CA bundle used by Node HTTPS clients | unset unless provided |
-
-Notes:
-- The `.env` files also contain `HOST`, but the current backend code does not read it.
-- WSS requires `TLS_PRIVATE_KEY` and `TLS_CERTIFICATE`; `TLS_CERTIFICATE_CHAIN` is optional.
-- PEM values may contain actual newlines or escaped `\n` sequences.
-- A port may contain multiple WSS paths, but WS and WSS endpoints cannot share one port.
+The backend's main HTTP server is not itself an HTTPS server. TLS credentials are
+used by dynamically created WSS Server endpoints.
 
 ## API Routes
 
-Documentation routes:
-
-| Method | Path | Behavior |
+| Method | Route | Result |
 | --- | --- | --- |
-| `GET` | `/api/openapi.json` | Return the OpenAPI document |
-| `GET` | `/api/docs` | Serve the Swagger UI |
+| `GET` | `/endpointlab/api/openapi.json` | OpenAPI JSON |
+| `GET` | `/endpointlab/api/docs` | Swagger UI |
+| `GET` | `/endpointlab/api/endpoints` | All stored endpoints |
+| `POST` | `/endpointlab/api/endpoints` | Validate, persist, and track one endpoint |
+| `POST` | `/endpointlab/api/endpoints/bulk` | Validate an array and bulk create/update |
+| `POST` | `/endpointlab/api/endpoints/reorder` | Persist order from an ID array |
+| `PUT` | `/endpointlab/api/endpoints/:id` | Replace one endpoint definition and runtime tracking |
+| `DELETE` | `/endpointlab/api/endpoints/:id` | Delete and untrack one endpoint |
+| `POST` | `/endpointlab/api/endpoints/:id/send` | Execute one stored endpoint |
 
-Endpoint base path:
+Create returns `201`; normal reads, updates, imports, deletes, and transmissions
+return `200`. Validation errors return `400`, missing endpoint IDs return `404`,
+and WSS TLS configuration errors return `503`.
 
-```text
-/api/endpoints
-```
+## Shared Endpoint Schema
 
-Endpoint routes:
+The backend re-exports the schema from `shared/src/index.ts`.
 
-| Method | Path | Behavior |
-| --- | --- | --- |
-| `GET` | `/` | Return all endpoints |
-| `POST` | `/` | Create one endpoint |
-| `POST` | `/bulk` | Validate an array and bulk upsert |
-| `PUT` | `/:id` | Update one endpoint |
-| `DELETE` | `/:id` | Delete one endpoint |
-| `POST` | `/:id/send` | Execute one saved endpoint |
+Validation rules:
 
-## Schema
+- `name` and `host` are non-empty strings
+- `port` is an integer from `1` through `65535`
+- `protocol` is `HTTP`, `HTTPS`, `TCP`, `UDP`, `WS`, or `WSS`
+- HTTP/HTTPS require `httpMethod` and `path`
+- WS/WSS require `path` and `websocketType`
+- `websocketType` is `Client` or `Server`
+- `delayMs`, when present, is a non-negative integer
+- `externalId`, when present, is a UUID
 
-The backend re-exports the shared schema from `shared/src/index.ts`.
+`responseBody` is stored for frontend comparison. The transmitter never serves it
+as a configured response.
 
-Important validation rules:
-- `name` and `host` are required
-- `port` must be an integer from `1` to `65535`
-- `protocol` must be `HTTP`, `HTTPS`, `TCP`, or `UDP`
-- `httpMethod` and `path` are required for HTTP and HTTPS endpoints
+## Persistence And Import Identity
 
-Bulk upsert behavior:
-- Imported rows with `externalId` are matched and updated in place
-- Older rows without `externalId` fall back to a stricter legacy identity of name, protocol, host, port, method, and path
-- Non-matches are inserted
+SQLite startup logic:
+
+- creates the `endpoints` table when absent
+- adds missing columns for older databases
+- assigns UUIDs to rows missing `external_id`
+- creates a unique index on `external_id`
+- enables WAL mode
+
+Bulk upsert matches `externalId` first. Legacy imports without one use a fallback
+identity composed of trimmed name, protocol, trimmed host, and port, plus:
+
+- HTTP/HTTPS: method and path
+- WS/WSS: path
+- TCP/UDP: no additional fields
+
+Non-matches are inserted. Ordering is stored as an integer and is updated by the
+reorder route.
 
 ## Transmission Behavior
 
-`POST /api/endpoints/:id/send` loads the saved row and dispatches by protocol:
+All outbound protocols use a 5 second timeout where applicable.
 
-- HTTP uses Node's `http` module
-- HTTPS uses Node's `https` module
-- TCP uses `net.createConnection`
-- UDP uses `dgram.createSocket('udp4')`
+### HTTP And HTTPS
 
-Transmission details:
-- Timeout is `5000ms`
-- `requestBody` is sent as-is
-- For HTTP and HTTPS requests, `Content-Type` is always `application/json`
-- HTTPS requests use Node's default TLS trust store; set `NODE_EXTRA_CA_CERTS` to a PEM file to add custom certificate authorities (e.g. a local self-signed CA)
-- `hasResponse=false` returns success as soon as the request is sent or the socket is closed
-- `hasResponse=true` waits for a response body and includes it in the result
+- use Node's `http` or `https` module
+- send `Content-Type: application/json`
+- send the configured body unchanged
+- follow up to 10 redirects
+- choose the redirect transport from the redirected URL scheme
+- return success only for status codes from 200 through 299
+- include the response body only when `hasResponse` is true
 
-The configured `responseBody` on an endpoint is not used by the backend transmitter. That field is for frontend-side expected-response comparison.
+HTTPS uses Node's trust store. Use `--use-system-ca` for installed system roots and
+`NODE_EXTRA_CA_CERTS` for a private CA file visible to the process/container.
 
-Transmission result shape:
+### TCP
+
+- opens a TCP connection to host/port
+- writes `requestBody` when present
+- resolves immediately after ending the socket when `hasResponse` is false
+- otherwise collects data until end or timeout
+
+### UDP
+
+- sends one UDP4 datagram
+- resolves after send when `hasResponse` is false
+- otherwise waits for one response datagram or timeout
+
+### WS/WSS Client Mode
+
+- constructs `ws://` or `wss://` from host, port, and path
+- connects when endpoints are loaded, created, or updated
+- shares one socket among endpoint rows with the same URL
+- reconnects 3 seconds after an unexpected close while an endpoint still uses it
+- sends `requestBody` on execution
+- waits for one message only when `hasResponse` is true
+
+### WS/WSS Server Mode
+
+- opens an HTTP or HTTPS upgrade listener on the configured port
+- binds independently of the endpoint's `host` field
+- routes upgrades by port plus request path
+- permits multiple same-protocol paths on one port
+- rejects mixing WS and WSS paths on one port
+- broadcasts `requestBody` to every open client on execution
+- returns `No WebSocket clients connected` when there are no recipients
+- terminates clients and awaits HTTP listener closure during update/delete
+
+WSS listeners use `TLS_PRIVATE_KEY`, `TLS_CERTIFICATE`, and the optional chain.
+
+## Transmission Result
 
 ```json
 {
-  "success": false,
-  "statusCode": 404,
-  "responseBody": "{\"message\":\"not found\"}",
-  "error": "ECONNREFUSED",
-  "latencyMs": 12
+  "success": true,
+  "statusCode": 200,
+  "responseBody": "{\"status\":\"ok\"}",
+  "latencyMs": 14
 }
 ```
 
-- `statusCode` is present only for HTTP/HTTPS responses; absent for TCP, UDP, and connection-level failures
-- `error` carries the Node error message or code (e.g. `ECONNREFUSED`, `EPROTO`, `Request timed out`) when a connection-level failure occurs; absent on success
+`success` and `latencyMs` are always present. `statusCode`, `responseBody`, and
+`error` are optional.
 
-## Storage
+## Tests
 
-Database details:
-- SQLite via `better-sqlite3`
-- Default file in this repo: `src/repos/db.sqlite`
-- WAL mode enabled on startup
-- Table creation and column backfill happen automatically in `src/db/index.ts`
+The current tests cover:
 
-The checked-in database currently contains example rows, so a fresh clone may already show endpoints in the UI.
+- repository import identity and WebSocket field persistence
+- WS server client disconnect, port release, recreation, and broadcast
+- missing WSS credential cleanup
+- TLS PEM parsing and chain handling
+- API error propagation/rollback for WSS creation
+- frontend JSON-diff behavior used by result cards
 
-## Production Serving
+Run:
 
-In production mode the backend:
-- Enables `helmet`
-- Serves static assets from `dist/public`
-- Falls back to `index.html` for client-side routing
+```bash
+npm test
+```
 
-This is how the Docker image serves the full app from one process.
+WebSocket/API integration tests bind loopback ports.
