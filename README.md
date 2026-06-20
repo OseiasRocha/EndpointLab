@@ -290,7 +290,7 @@ Notes:
 - `NODE_EXTRA_CA_CERTS` is needed when the backend makes outbound requests to an HTTPS endpoint signed by a private CA (e.g. the backend's own HTTPS listener).
 - The Docker image bundles the built frontend under `backend/dist/public`.
 - `listener.py` is not included in the Docker image.
-- Interactive API docs are available at `http://localhost:8080/api/docs`.
+- Interactive API docs are available at `http://localhost:8080/endpointlab/api/docs`.
 
 ## Verified Commands
 

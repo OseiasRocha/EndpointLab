@@ -26,6 +26,8 @@ pnpm-debug.log*
 
 # Local HTTPS certificates
 certs/
+docker/certs/
+docker/wss.env
 
 # Python artifacts (listener)
 __pycache__/

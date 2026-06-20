@@ -11,6 +11,8 @@ frontend/dist
 **/.env*.local
 **/coverage
 **/*.log
+docker/certs
+docker/wss.env
 
 # SQLite database files (mounted as a volume at runtime)
 backend/src/repos/*.sqlite
