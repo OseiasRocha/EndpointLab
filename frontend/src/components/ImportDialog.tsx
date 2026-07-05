@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, type DragEvent } from 'react';
 import JSZip from 'jszip';
 import { EndpointSchema, getEndpointFallbackKey } from '@shared';
 import type { SimulatorEndpoint, EndpointInput } from '@shared';
@@ -41,6 +41,7 @@ export default function ImportDialog({ open, onClose, existingEndpoints, onImpor
   const [step, setStep] = useState<'select' | 'preview'>('select');
   const [importing, setImporting] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function handleClose() {
@@ -49,8 +50,39 @@ export default function ImportDialog({ open, onClose, existingEndpoints, onImpor
     setSelected(new Set());
     setStep('select');
     setParseError(null);
+    setDragging(false);
     if (fileRef.current) fileRef.current.value = '';
     onClose();
+  }
+
+  function isZipFile(file: File): boolean {
+    return file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+  }
+
+  function handleFiles(files: FileList | null) {
+    const file = Array.from(files ?? []).find(isZipFile);
+    if (!file) {
+      setParseError('Drop a .zip file previously exported from EndpointLab.');
+      return;
+    }
+    void handleFile(file);
+  }
+
+  function handleDrag(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.type === 'dragenter' || event.type === 'dragover') {
+      setDragging(true);
+    } else if (event.type === 'dragleave') {
+      setDragging(false);
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragging(false);
+    handleFiles(event.dataTransfer.files);
   }
 
   async function handleFile(file: File) {
@@ -154,16 +186,23 @@ export default function ImportDialog({ open, onClose, existingEndpoints, onImpor
               borderColor: 'divider',
               borderRadius: 2,
               cursor: 'pointer',
+              bgcolor: dragging ? 'rgba(73,204,144,0.08)' : 'transparent',
+              transition: theme => theme.transitions.create(['background-color', 'border-color']),
+              ...(dragging && { borderColor: '#49cc90' }),
               '&:hover': { borderColor: '#49cc90', bgcolor: 'rgba(73,204,144,0.04)' },
             }}
             onClick={() => fileRef.current?.click()}
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
           >
             <UploadFileIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
             <Typography variant="body1" fontWeight={600}>
-              Click to select a ZIP file
+              Click or drop a ZIP file
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Select a .zip file previously exported from EndpointLab
+              Use a .zip file previously exported from EndpointLab
             </Typography>
             {parseError && (
               <Typography variant="caption" color="error" sx={{ mt: 1 }}>
@@ -176,7 +215,7 @@ export default function ImportDialog({ open, onClose, existingEndpoints, onImpor
             accept=".zip"
             ref={fileRef}
             style={{ display: 'none' }}
-            onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
+            onChange={e => handleFiles(e.target.files)}
           />
         </DialogContent>
       ) : (
