@@ -41,12 +41,23 @@ import ImportDialog from '../components/ImportDialog';
 const PROTOCOL_FILTERS: Array<Protocol | 'ALL'> = ['ALL', 'HTTP', 'HTTPS', 'TCP', 'UDP', 'WS', 'WSS'];
 const PROTOCOLS: Protocol[] = ['HTTP', 'HTTPS', 'TCP', 'UDP', 'WS', 'WSS'];
 const UNGROUPED = '__ungrouped__';
+const EXPANDED_GROUPS_STORAGE_KEY = 'endpointExpandedGroups';
 
 // App header color — intentionally always dark regardless of mode (brand identity)
 const HEADER_BG = '#173647';
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function loadExpandedGroups() {
+  try {
+    const stored = localStorage.getItem(EXPANDED_GROUPS_STORAGE_KEY);
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((name): name is string => typeof name === 'string') : []);
+  } catch {
+    return new Set<string>();
+  }
 }
 
 interface CardSharedProps {
@@ -126,7 +137,7 @@ export default function HomePage() {
   const [protocolFilter, setProtocolFilter] = useState<Protocol | 'ALL'>('ALL');
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(loadExpandedGroups);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
   const [dragOverCardId, setDragOverCardId] = useState<number | null>(null);
@@ -152,8 +163,12 @@ export default function HomePage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    localStorage.setItem(EXPANDED_GROUPS_STORAGE_KEY, JSON.stringify([...expandedGroups]));
+  }, [expandedGroups]);
+
   function toggleGroup(name: string) {
-    setCollapsedGroups(prev => {
+    setExpandedGroups(prev => {
       const next = new Set(prev);
       if (next.has(name)) next.delete(name);
       else next.add(name);
@@ -477,7 +492,7 @@ export default function HomePage() {
               const groupEps = filtered.filter(e => e.group === groupName);
               if (!groupEps.length) return null;
               const sortedGroupEps = [...groupEps].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-              const isCollapsed = collapsedGroups.has(groupName);
+              const isCollapsed = !expandedGroups.has(groupName);
               const { onDragOver, onDragLeave, onDrop, isOver } = dropTargetProps(groupName);
               const isRunning = playingGroup === groupName && [...playResults.values()].some(v => v === 'loading');
               return (
@@ -543,8 +558,8 @@ export default function HomePage() {
               const ungrouped = filtered.filter(e => !e.group);
               if (!ungrouped.length) return null;
               const sortedUngrouped = [...ungrouped].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-              const isCollapsed = collapsedGroups.has(UNGROUPED);
               const showHeader = groupNames.length > 0;
+              const isCollapsed = showHeader && !expandedGroups.has(UNGROUPED);
               const { onDragOver, onDragLeave, onDrop, isOver } = dropTargetProps(UNGROUPED);
               const isRunning = playingGroup === UNGROUPED && [...playResults.values()].some(v => v === 'loading');
               return (
