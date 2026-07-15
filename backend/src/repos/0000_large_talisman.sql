@@ -1,7 +1,0 @@
-CREATE TABLE `endpoints` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`name` text NOT NULL,
-	`protocol` text NOT NULL,
-	`host` text NOT NULL,
-	`port` integer NOT NULL
-);
